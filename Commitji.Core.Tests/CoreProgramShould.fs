@@ -559,8 +559,8 @@ module ``5_ select breaking change`` =
         let actual =
             initial // ↩
             |> update (Msg.InputChanged exactPrefixInput)
-            |> update Msg.Enter
-            |> update (Msg.InputChanged "!")
+            |> update Msg.Enter // Select first emoji
+            |> update (Msg.InputChanged "!") // Confirm breaking change
 
         actual
         |> shouldHave [
@@ -569,9 +569,34 @@ module ``5_ select breaking change`` =
             CompleteStep(CompletedStep.BreakingChange { Selected = true; Disabled = false })
         ]
 
-    // TODO: confirmed no breaking change
+    [<Property>]
+    let ``confirm no breaking change when pressing [Enter] given a feat or a fix`` (MinInputMatchingFeatOrFixWithEmojis(exactPrefixInput, expectedPrefix, expectedEmojis)) =
+        let expectedEmoji = expectedEmojis.Head
 
-    // TODO: invalidInput
+        let actual =
+            initial // ↩
+            |> update (Msg.InputChanged exactPrefixInput)
+            |> update Msg.Enter // Select first emoji
+            |> update Msg.Enter // Confirm no breaking change
+
+        actual
+        |> shouldHave [
+            CompleteStep(CompletedStep.Prefix expectedPrefix) // ↩
+            CompleteStep(CompletedStep.Emoji expectedEmoji)
+            CompleteStep(CompletedStep.BreakingChange { Selected = false; Disabled = false })
+        ]
+
+    [<Property>]
+    let ``any input is considered invalid except '!'`` (NonEmptyString invalidInput) (MinInputMatchingFeatOrFixWithEmojis(exactPrefixInput, _, _)) =
+        if invalidInput <> "!" then
+            let actual =
+                initial // ↩
+                |> update (Msg.InputChanged exactPrefixInput)
+                |> update Msg.Enter // Select first emoji
+                |> update (Msg.InputChanged invalidInput)
+
+            actual
+            |> shouldHave [ CurrentStep(Step.BreakingChange({ Selected = false; Disabled = false }, invalidInput = Some invalidInput)) ]
 
     [<Property>]
     let ``prevent selecting the breaking change given neither a feat nor a fix`` (MinInputWithMatchingEmojiWithManyPrefixesAndNoBreakingChange(exactPrefixInput, expectedPrefix, expectedEmojis)) =
@@ -589,10 +614,48 @@ module ``5_ select breaking change`` =
             CompleteStep(CompletedStep.BreakingChange { Selected = false; Disabled = true })
         ]
 
-module ``6_ confirm selections`` =
-    // TODO: check semVerChange
+module ``6_ determine semantic version change`` =
+    [<Property>]
+    let ``indicate major given a feat or a fix with breaking change`` (MinInputMatchingFeatOrFixWithEmojis(exactPrefixInput, _, _)) =
+        let actual =
+            initial // ↩
+            |> update (Msg.InputChanged exactPrefixInput)
+            |> update Msg.Enter // Select first emoji
+            |> update (Msg.InputChanged "!") // Confirm breaking change
 
-    let (|ModelReadyForConfirmation|) (prefix, emoji, breakingChange, semVerChange) =
+        actual |> shouldHave [ CurrentStep(Step.Confirmation(Some SemVerChange.Major, invalidInput = None)) ]
+
+    [<Fact>]
+    let ``indicate minor given a fix with no breaking change`` () =
+        let actual =
+            initial // ↩
+            |> update (Msg.InputChanged "fi")
+            |> update Msg.Enter // Select first emoji
+            |> update Msg.Enter // Confirm no breaking change
+
+        actual |> shouldHave [ CurrentStep(Step.Confirmation(Some SemVerChange.Minor, invalidInput = None)) ]
+
+    [<Fact>]
+    let ``indicate patch given a feat with no breaking change`` () =
+        let actual =
+            initial // ↩
+            |> update (Msg.InputChanged "fe")
+            |> update Msg.Enter // Select first emoji
+            |> update Msg.Enter // Confirm no breaking change
+
+        actual |> shouldHave [ CurrentStep(Step.Confirmation(Some SemVerChange.Patch, invalidInput = None)) ]
+
+    [<Property>]
+    let ``indicate none given other prefix`` (MinInputWithMatchingEmojiWithManyPrefixesAndNoBreakingChange(exactPrefixInput, _, _)) =
+        let actual =
+            initial // ↩
+            |> update (Msg.InputChanged exactPrefixInput)
+            |> update Msg.Enter // Select first emoji - No possible breaking change detected
+
+        actual |> shouldHave [ CurrentStep(Step.Confirmation(None, invalidInput = None)) ]
+
+module ``7_ confirm selections`` =
+    let private (|ModelReadyForConfirmation|) (prefix, emoji, breakingChange, semVerChange) =
         {
             initial with
                 CurrentStep = {
@@ -611,9 +674,9 @@ module ``6_ confirm selections`` =
         (prefix, emoji, breakingChange)
 
     [<Property>]
-    let ``any input is considered invalid at this step`` (NonEmptyString input) (ModelReadyForConfirmation(model, _)) =
-        let actual = model |> update (Msg.InputChanged input)
-        actual |> shouldHave [ CurrentStep(model.CurrentStep.Step |> Step.setInvalidInput input) ]
+    let ``any input is considered invalid at this step`` (NonEmptyString invalidInput) (ModelReadyForConfirmation(model, _)) =
+        let actual = model |> update (Msg.InputChanged invalidInput)
+        actual |> shouldHave [ CurrentStep(model.CurrentStep.Step |> Step.setInvalidInput invalidInput) ]
 
     [<Property>]
     let ``confirm all selections by pressing [Enter]`` (ModelReadyForConfirmation(model, (prefix, emoji, breakingChange))) =

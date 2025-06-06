@@ -13,8 +13,8 @@ module SemVerChange =
     let determine breakingChange prefix =
         match breakingChange, prefix with
         | HasBreakingChange, _ -> Some SemVerChange.Major
-        | _, Prefix.Feat -> Some SemVerChange.Minor
-        | _, Prefix.Fix -> Some SemVerChange.Patch
+        | _, Prefix.Fix -> Some SemVerChange.Minor
+        | _, Prefix.Feat -> Some SemVerChange.Patch
         | _ -> None
 
     let code =
