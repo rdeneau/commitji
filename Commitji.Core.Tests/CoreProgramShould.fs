@@ -12,7 +12,7 @@ open global.Xunit
 module Helpers =
     let initial = {
         CurrentStep = {
-            Step = Step.Prefix Prefix.All
+            Step = Step.Prefix Prefix.All.AsSelectable
             Input = ""
             Confirmed = false
         }
@@ -381,7 +381,7 @@ module ``1_ select prefix first`` =
 
         actual
         |> shouldHave [
-            CurrentStep(Step.Prefix expectedPrefixes) // ↩
+            CurrentStep(Step.Prefix expectedPrefixes.AsSelectable) // ↩
             CurrentInput input
         ]
 
@@ -413,7 +413,7 @@ module ``2_ select emoji after prefix`` =
 
         actual
         |> shouldHave [
-            CurrentStep(Step.Emoji expectedEmojis) // ↩
+            CurrentStep(Step.Emoji expectedEmojis.AsSelectable) // ↩
             CurrentInput ""
         ]
 
@@ -453,7 +453,7 @@ module ``3_ select emoji first`` =
 
         actual
         |> shouldHave [
-            CurrentStep(Step.Emoji Emoji.All) // ↩
+            CurrentStep(Step.Emoji Emoji.All.AsSelectable) // ↩
             CurrentInput ""
         ]
 
@@ -466,7 +466,7 @@ module ``3_ select emoji first`` =
 
         actual
         |> shouldHave [
-            CurrentStep(Step.Emoji expectedEmojis) // ↩
+            CurrentStep(Step.Emoji expectedEmojis.AsSelectable) // ↩
             CurrentInput input
         ]
 
@@ -501,7 +501,7 @@ module ``4_ select prefix after emoji`` =
 
         actual
         |> shouldHave [
-            CurrentStep(Step.Prefix expectedPrefixes) // ↩
+            CurrentStep(Step.Prefix expectedPrefixes.AsSelectable) // ↩
             CurrentInput ""
         ]
 
