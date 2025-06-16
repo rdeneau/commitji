@@ -57,6 +57,3 @@ type Msg =
 module CommandChar =
     [<Literal>]
     let Emoji = ":"
-
-    [<Literal>]
-    let BreakingChange = "!"
