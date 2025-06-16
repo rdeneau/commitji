@@ -251,7 +251,7 @@ let rec private tryCompleteManySteps strategy model =
     if completedModel = model then
         completedModel // No changes -> more completion is not possible.
     else
-        tryCompleteManySteps strategy completedModel // Try complete more steps in a row.
+        tryCompleteManySteps ExactMatch completedModel // Try complete more steps in a row, but only for exact matches.
 
 let update (msg: Msg) (model: Model) =
     let model = // ↩

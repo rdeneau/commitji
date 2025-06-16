@@ -394,7 +394,7 @@ module ``1_ select prefix first`` =
             |> update (Msg.InputChanged input)
             |> update Msg.Enter
 
-        actual |> shouldHave [ CompleteStep(CompletedStep.Prefix expectedPrefix) ]
+        actual |> shouldHave [ CompletedSteps [ CompletedStep.Prefix expectedPrefix ] ]
 
     [<Property>]
     let ``select the exact matching prefix`` (MinInputWithMatchingPrefixAndEmojis(exactPrefixInput, expectedPrefix, _)) =
