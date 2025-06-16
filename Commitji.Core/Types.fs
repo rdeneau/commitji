@@ -9,10 +9,22 @@ type CompletedStep =
     | Emoji of selectedEmoji: Emoji // TODO: add the possibility to skip the emoji - it can be Emoji.None "-", matching "none" and linked to any Prefix...
     | BreakingChange of BreakingChange
 
+type SelectableList<'T> =
+    { Items: 'T list
+      Index: int }
+
+type SelectableList =
+    static member Create(items, ?index) =
+        { Items = items; Index = defaultArg index 0 }
+
+type List<'T> with
+    member this.AsSelectable =
+        SelectableList.Create(this)
+
 [<RequireQualifiedAccess>]
 type Step =
-    | Prefix of matchingPrefixes: Prefix list
-    | Emoji of matchingEmojis: Emoji list
+    | Prefix of SelectableList<Prefix>
+    | Emoji of SelectableList<Emoji>
     | BreakingChange of BreakingChange * invalidInput: string option
     | Confirmation of SemVerChange option * invalidInput: string option
 
@@ -37,6 +49,8 @@ type Model = {
 type Msg =
     | Backspace
     | Enter
+    | Down
+    | Up
     | InputChanged of input: string
 
 [<RequireQualifiedAccess>]

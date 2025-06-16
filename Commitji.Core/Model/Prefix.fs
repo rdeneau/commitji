@@ -26,13 +26,9 @@ type Prefix =
     | Revert
     | Wip
 
-[<RequireQualifiedAccess>]
-module Prefix =
-    let All = Helpers.Reflection.getEnumLikeUnionCases<Prefix> ()
-
-    let props prefix =
+    member this.Props =
         let code, hint =
-            match prefix with
+            match this with
             | Feat -> "feat", "A new feature"
             | Fix -> "fix", "A bug fix"
             | Refactor -> "refactor", "A code change that does not alter the functionality"
@@ -44,3 +40,10 @@ module Prefix =
             | Wip -> "wip", "Work in progress, not yet finalized"
 
         {| Code = code; Hint = hint |}
+
+    member this.Code = this.Props.Code
+    member this.Hint = this.Props.Hint
+
+[<RequireQualifiedAccess>]
+module Prefix =
+    let All = Helpers.Reflection.getEnumLikeUnionCases<Prefix> ()
