@@ -57,25 +57,21 @@ module Helpers =
         | Bu
         | Co
         | Cons
-        | Construction
-        | G
         | Heavy
         | Mon
         | Te
-        | W
+        | Z
 
     let (|InputWithManyMatchingEmojis|) =
         function
-        | InputMatchingManyEmojis.Arrow -> "arrow", [ Emoji.ArrowDown; Emoji.ArrowUp ]
-        | InputMatchingManyEmojis.Bu -> "bu", [ Emoji.Bug; Emoji.BuildingConstruction; Emoji.Bulb; Emoji.BustsInSilhouette ]
-        | InputMatchingManyEmojis.Co -> "co", [ Emoji.Coffin; Emoji.Construction; Emoji.ConstructionWorker ]
-        | InputMatchingManyEmojis.Cons -> "cons", [ Emoji.Construction; Emoji.ConstructionWorker ]
-        | InputMatchingManyEmojis.Construction -> "construction", [ Emoji.Construction; Emoji.ConstructionWorker ]
-        | InputMatchingManyEmojis.G -> "g", [ Emoji.GlobeWithMeridians; Emoji.GoalNet; Emoji.GreenHeart ]
+        | InputMatchingManyEmojis.Arrow -> "arrow", [ Emoji.ArrowDown; Emoji.ArrowUp; Emoji.TwistedRightwardsArrows ]
+        | InputMatchingManyEmojis.Bu -> "bu", [ Emoji.Ambulance; Emoji.Bug; Emoji.BuildingConstruction; Emoji.Bulb; Emoji.BustsInSilhouette ]
+        | InputMatchingManyEmojis.Co -> "co", [ Emoji.BuildingConstruction; Emoji.Coffin; Emoji.Construction; Emoji.ConstructionWorker; Emoji.PassportControl; Emoji.Stethoscope ]
+        | InputMatchingManyEmojis.Cons -> "cons", [ Emoji.BuildingConstruction; Emoji.Construction; Emoji.ConstructionWorker ]
         | InputMatchingManyEmojis.Heavy -> "heavy", [ Emoji.HeavyMinusSign; Emoji.HeavyPlusSign ]
         | InputMatchingManyEmojis.Mon -> "mon", [ Emoji.MoneyWithWings; Emoji.MonocleFace ]
-        | InputMatchingManyEmojis.Te -> "te", [ Emoji.Technologist; Emoji.TestTube ]
-        | InputMatchingManyEmojis.W -> "w", [ Emoji.Wastebasket; Emoji.Wheelchair; Emoji.WhiteCheckMark; Emoji.Wrench ]
+        | InputMatchingManyEmojis.Te -> "te", [ Emoji.BustsInSilhouette; Emoji.Mute; Emoji.Stethoscope; Emoji.Technologist; Emoji.TestTube; Emoji.TwistedRightwardsArrows; Emoji.Wastebasket; Emoji.WhiteCheckMark ]
+        | InputMatchingManyEmojis.Z -> "z", [ Emoji.Dizzy; Emoji.Zap ]
 
     [<RequireQualifiedAccess>]
     type InputMatchingManyPrefixes =
@@ -93,25 +89,19 @@ module Helpers =
 
     [<RequireQualifiedAccess>]
     type MinInputToMatchExactlyOneEmojiAndOnePrefix =
-        | Ad
-        | Ai
-        | Ali
+        | Adh
+        | Alie
         | Bee
         | Book
         | Bug
         | Bui
-        | Bul
-        | E
+        | Bulb
         | HeavyP
-        | Loc
-        | Ma
-        | Me
+        | Mag
         | Mone
-        | N
         | Pac
         | Pag
         | Pas
-        | Pe
         | Pu
         | Rec
         | Roc
@@ -120,33 +110,26 @@ module Helpers =
         | See_
         | Spa
         | Tes
-        | Th
-        | Tru
+        | Thr
         | Whe
         | Whi
-        | Z
+        | Za
 
     let (|MinInputWithMatchingEmojiWithSinglePrefix|) =
         function
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Ad -> "ad", Emoji.AdhesiveBandage, Prefix.Fix
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Ai -> "ai", Emoji.Airplane, Prefix.Feat
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Ali -> "ali", Emoji.Alien, Prefix.Chore
+        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Adh -> "adh", Emoji.AdhesiveBandage, Prefix.Fix
+        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Alie -> "alie", Emoji.Alien, Prefix.Chore
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Bee -> "bee", Emoji.Beers, Prefix.Wip
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Book -> "book", Emoji.Bookmark, Prefix.Chore
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Bug -> "bug", Emoji.Bug, Prefix.Fix
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Bui -> "bui", Emoji.BuildingConstruction, Prefix.Refactor
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Bul -> "bul", Emoji.Bulb, Prefix.Docs
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.E -> "e", Emoji.Egg, Prefix.Feat
+        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Bulb -> "bulb", Emoji.Bulb, Prefix.Docs
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.HeavyP -> "heavy_p", Emoji.HeavyPlusSign, Prefix.Chore
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Loc -> "loc", Emoji.Lock, Prefix.Fix
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Ma -> "ma", Emoji.Mag, Prefix.Chore
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Me -> "me", Emoji.Memo, Prefix.Docs
+        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Mag -> "mag", Emoji.Mag, Prefix.Chore
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Mone -> "mone", Emoji.MoneyWithWings, Prefix.Docs
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.N -> "n", Emoji.Necktie, Prefix.Feat
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Pac -> "pac", Emoji.Package, Prefix.Chore
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Pag -> "pag", Emoji.PageFacingUp, Prefix.Docs
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Pas -> "pas", Emoji.PassportControl, Prefix.Feat
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Pe -> "pe", Emoji.Pencil2, Prefix.Chore
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Pu -> "pu", Emoji.Pushpin, Prefix.Chore
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Rec -> "rec", Emoji.Recycle, Prefix.Refactor
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Roc -> "roc", Emoji.Rocket, Prefix.Chore
@@ -155,41 +138,30 @@ module Helpers =
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.See_ -> "see_", Emoji.SeeNoEvil, Prefix.Chore
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Spa -> "spa", Emoji.Sparkles, Prefix.Feat
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Tes -> "tes", Emoji.TestTube, Prefix.Test
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Th -> "th", Emoji.Thread, Prefix.Perf
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Tru -> "tru", Emoji.Truck, Prefix.Refactor
+        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Thr -> "thr", Emoji.Thread, Prefix.Perf
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Whe -> "whe", Emoji.Wheelchair, Prefix.Feat
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Whi -> "whi", Emoji.WhiteCheckMark, Prefix.Test
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Z -> "z", Emoji.Zap, Prefix.Perf
+        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Za -> "za", Emoji.Zap, Prefix.Perf
 
     [<RequireQualifiedAccess>]
     type MinInputToMatchExactlyOneEmojiAndManyPrefixes =
         | Ale
         | Boom
-        | Br
         | Cam
-        | D
-        | I
-        | Li
+        | Diz
         | Mono
-        | Po
         | Rew
         | Tri
-        | Wa
 
     let (|MinInputWithMatchingEmojiWithManyPrefixes|) =
         function
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Ale -> "ale", Emoji.Alembic, [ Prefix.Feat; Prefix.Chore; Prefix.Wip ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Boom -> "boom", Emoji.Boom, [ Prefix.Feat; Prefix.Fix ]
-        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Br -> "br", Emoji.Bricks, [ Prefix.Feat; Prefix.Chore ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Cam -> "cam", Emoji.CameraFlash, [ Prefix.Test; Prefix.Chore; Prefix.Docs ]
-        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.D -> "d", Emoji.Dizzy, [ Prefix.Feat; Prefix.Fix ]
-        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.I -> "i", Emoji.Iphone, [ Prefix.Feat; Prefix.Fix ]
-        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Li -> "li", Emoji.Lipstick, [ Prefix.Feat; Prefix.Fix ]
+        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Diz -> "diz", Emoji.Dizzy, [ Prefix.Feat; Prefix.Fix ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Mono -> "mono", Emoji.MonocleFace, [ Prefix.Chore; Prefix.Wip ]
-        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Po -> "po", Emoji.Poop, [ Prefix.Feat; Prefix.Wip ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Rew -> "rew", Emoji.Rewind, [ Prefix.Chore; Prefix.Revert ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Tri -> "tri", Emoji.TriangularFlagOnPost, [ Prefix.Feat; Prefix.Chore ]
-        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Wa -> "wa", Emoji.Wastebasket, [ Prefix.Refactor; Prefix.Wip ]
 
     [<RequireQualifiedAccess>]
     type MinInputToMatchExactlyOnePrefixAndManyEmojis =
@@ -554,14 +526,14 @@ module ``5_ select breaking change`` =
         ]
 
     [<Property>]
-    let ``select the breaking change when pressing [!] given a feat or a fix`` (MinInputMatchingFeatOrFixWithEmojis(exactPrefixInput, expectedPrefix, expectedEmojis)) =
+    let ``select the breaking change when pressing [y] given a feat or a fix`` (MinInputMatchingFeatOrFixWithEmojis(exactPrefixInput, expectedPrefix, expectedEmojis)) =
         let expectedEmoji = expectedEmojis.Head
 
         let actual =
             initial // ↩
             |> update (Msg.InputChanged exactPrefixInput)
             |> update Msg.Enter // Select first emoji
-            |> update (Msg.InputChanged "!") // Confirm breaking change
+            |> update (Msg.InputChanged "y") // Confirm breaking change
 
         actual
         |> shouldHave [
@@ -622,7 +594,7 @@ module ``6_ determine semantic version change`` =
             initial // ↩
             |> update (Msg.InputChanged exactPrefixInput)
             |> update Msg.Enter // Select first emoji
-            |> update (Msg.InputChanged "!") // Confirm breaking change
+            |> update (Msg.InputChanged "y") // Confirm breaking change
 
         actual |> shouldHave [ CurrentStep(Step.Confirmation(Some SemVerChange.Major, invalidInput = None)) ]
 
