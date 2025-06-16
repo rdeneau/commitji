@@ -1,7 +1,8 @@
 ﻿module CoreProgramShould
 
 open Commitji.Core.Model
-open Commitji.Core.Program
+open Commitji.Core.State
+open Commitji.Core.Types
 open FsCheck
 open FsCheck.Xunit
 open Swensen.Unquote

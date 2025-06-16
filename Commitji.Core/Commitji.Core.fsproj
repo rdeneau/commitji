@@ -12,11 +12,8 @@
     <Compile Include="Model\Relation.fs" />
     <Compile Include="Model\BreakingChange.fs" />
     <Compile Include="Model\SemVerChange.fs" />
-    <Compile Include="Program.fs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Elmish.WPF" Version="3.5.8" />
+    <Compile Include="Types.fs" />
+    <Compile Include="State.fs" />
   </ItemGroup>
 
 </Project>
