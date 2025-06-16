@@ -1,5 +1,6 @@
 ﻿module Commitji.Core.State
 
+open System
 open Commitji.Core.Model
 
 type private MatchingStrategy =
@@ -69,7 +70,7 @@ let private findMatchingPrefixes (model: Model) =
     | IsEmpty -> model.SelectablePrefixes
     | IsNotEmpty -> [
         for prefix in model.SelectablePrefixes do
-            if prefix.Code.StartsWith(model.CurrentStep.Input, System.StringComparison.OrdinalIgnoreCase) then
+            if prefix.Code.StartsWith(model.CurrentStep.Input, StringComparison.OrdinalIgnoreCase) then
                 prefix
       ]
 
@@ -78,7 +79,7 @@ let private findMatchingEmojis (model: Model) =
     | IsEmpty -> model.SelectableEmojis
     | IsNotEmpty -> [
         for emoji in model.SelectableEmojis do
-            if emoji.Code.StartsWith(model.CurrentStep.Input, System.StringComparison.OrdinalIgnoreCase) then
+            if emoji.Code.Contains(model.CurrentStep.Input, StringComparison.OrdinalIgnoreCase) then
                 emoji
       ]
 
@@ -232,10 +233,13 @@ let private tryCompleteCurrentStep strategy (model: Model) =
     // Steps using the model.CurrentStep.Confirmed
     | Step.BreakingChange(breakingChange, _) when breakingChange.Disabled || model.CurrentStep.Confirmed -> // ↩
         model |> completeBreakingChangeStep breakingChange
-    | Step.BreakingChange(breakingChange, _) when model.CurrentStep.Input = CommandChar.BreakingChange -> // ↩
-        model |> completeBreakingChangeStep { breakingChange with Selected = true }
-    | Step.BreakingChange _ when model.CurrentStep.Input <> "" -> // Invalid input -> reset
-        { model with CurrentStep = model.CurrentStep |> CurrentStep.setInvalidInput model.CurrentStep.Input }
+    | Step.BreakingChange(breakingChange, _) when model.CurrentStep.Input <> "" ->
+        if "Yes".StartsWith(model.CurrentStep.Input, StringComparison.OrdinalIgnoreCase) then
+            model |> completeBreakingChangeStep { breakingChange with Selected = true }
+        elif "No".StartsWith(model.CurrentStep.Input, StringComparison.OrdinalIgnoreCase) then
+            model |> completeBreakingChangeStep { breakingChange with Selected = false }
+        else // Invalid input -> reset
+            { model with CurrentStep = model.CurrentStep |> CurrentStep.setInvalidInput model.CurrentStep.Input }
     | Step.BreakingChange _ -> model
 
     | Step.Confirmation _ when model.CurrentStep.Input <> "" -> // Invalid input -> reset
@@ -263,8 +267,8 @@ let update (msg: Msg) (model: Model) =
     | InputChanged input, _ -> { model with Model.CurrentStep.Input = input } |> findMatches |> tryCompleteManySteps ExactMatch
     | Enter, _ -> model |> tryCompleteManySteps FirstMatchAtIndex
     | Down, { Step = Step.Prefix prefixes } -> { model with Model.CurrentStep.Step = prefixes |> SelectableList.selectNext |> Step.Prefix }
-    | Down, { Step = Step.Emoji emojis } -> { model with Model.CurrentStep.Step = emojis |> SelectableList.selectNext |> Step.Emoji }
-    | Down, _ -> model // No change for other steps
     | Up, { Step = Step.Prefix prefixes } -> { model with Model.CurrentStep.Step = prefixes |> SelectableList.selectPrevious |> Step.Prefix }
+    | Down, { Step = Step.Emoji emojis } -> { model with Model.CurrentStep.Step = emojis |> SelectableList.selectNext |> Step.Emoji }
     | Up, { Step = Step.Emoji emojis } -> { model with Model.CurrentStep.Step = emojis |> SelectableList.selectPrevious |> Step.Emoji }
-    | Up, _ -> model // No change for other steps
+    | (Down | Up), { Step = Step.BreakingChange(x, _) } -> { model with Model.CurrentStep.Step = Step.BreakingChange({ x with Selected = not x.Selected }, invalidInput = None) }
+    | (Down | Up), _ -> model // No change for other steps
