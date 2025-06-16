@@ -3,12 +3,12 @@
 open Commitji.Core.Model
 
 type private MatchingStrategy =
-    | FirstMatch
+    | FirstMatchAtIndex
     | ExactMatch
 
-let private (|Match|_|) strategy items =
+let private (|Match|_|) strategy { Items = items; Index = index } =
     match strategy, items with
-    | FirstMatch, item :: _ -> Some item
+    | FirstMatchAtIndex, _ -> Some(items[index])
     | ExactMatch, [ item ] -> Some item
     | _ -> None
 
@@ -35,8 +35,26 @@ module private CurrentStep =
         Confirmed = false
     }
 
+[<RequireQualifiedAccess>]
+module private SelectableList =
+    let selectNext (selectableList: SelectableList<'T>) = {
+        selectableList with
+            Index =
+                match selectableList.Index + 1 with
+                | i when i >= List.length selectableList.Items -> 0 // Wrap around to the first item
+                | i -> i
+    }
+
+    let selectPrevious (selectableList: SelectableList<'T>) = {
+        selectableList with
+            Index =
+                match selectableList.Index - 1 with
+                | i when i < 0 -> List.length selectableList.Items - 1 // Wrap around to the last item
+                | i -> i
+    }
+
 let init () = {
-    CurrentStep = CurrentStep.start (Step.Prefix Prefix.All)
+    CurrentStep = CurrentStep.start (Step.Prefix Prefix.All.AsSelectable)
     CompletedSteps = []
     SelectablePrefixes = Prefix.All
     SelectableEmojis = Emoji.All
@@ -51,9 +69,7 @@ let private findMatchingPrefixes (model: Model) =
     | IsEmpty -> model.SelectablePrefixes
     | IsNotEmpty -> [
         for prefix in model.SelectablePrefixes do
-            let props = Prefix.props prefix
-
-            if props.Code.StartsWith(model.CurrentStep.Input, System.StringComparison.OrdinalIgnoreCase) then
+            if prefix.Code.StartsWith(model.CurrentStep.Input, System.StringComparison.OrdinalIgnoreCase) then
                 prefix
       ]
 
@@ -62,16 +78,14 @@ let private findMatchingEmojis (model: Model) =
     | IsEmpty -> model.SelectableEmojis
     | IsNotEmpty -> [
         for emoji in model.SelectableEmojis do
-            let props = Emoji.props emoji
-
-            if props.Code.StartsWith(model.CurrentStep.Input, System.StringComparison.OrdinalIgnoreCase) then
+            if emoji.Code.StartsWith(model.CurrentStep.Input, System.StringComparison.OrdinalIgnoreCase) then
                 emoji
       ]
 
 let private findMatches (model: Model) =
     match model.CurrentStep.Step with
-    | Step.Prefix _ -> { model with Model.CurrentStep.Step = Step.Prefix(findMatchingPrefixes model) }
-    | Step.Emoji _ -> { model with Model.CurrentStep.Step = Step.Emoji(findMatchingEmojis model) }
+    | Step.Prefix _ -> { model with Model.CurrentStep.Step = findMatchingPrefixes model |> SelectableList.Create |> Step.Prefix }
+    | Step.Emoji _ -> { model with Model.CurrentStep.Step = findMatchingEmojis model |> SelectableList.Create |> Step.Emoji }
     | _ -> model
 
 /// Restart the previous step, if any.
@@ -79,7 +93,7 @@ let private findMatches (model: Model) =
 let rec private rollback (model: Model) =
     match model.CompletedSteps, model.CurrentStep.Step with
     | [], Step.Emoji _ -> // ↩
-        { model with CurrentStep = CurrentStep.start (Step.Prefix model.SelectablePrefixes) }
+        { model with CurrentStep = CurrentStep.start (Step.Prefix model.SelectablePrefixes.AsSelectable) }
     | [], _ -> model // No previous step to roll back to -> stay in the current step.
     | previousStep :: completedSteps, _ ->
         let restartAt (step: Step) = {
@@ -89,8 +103,8 @@ let rec private rollback (model: Model) =
         }
 
         match previousStep with
-        | CompletedStep.Prefix _ -> restartAt (Step.Prefix model.SelectablePrefixes)
-        | CompletedStep.Emoji _ -> restartAt (Step.Emoji model.SelectableEmojis)
+        | CompletedStep.Prefix _ -> restartAt (Step.Prefix model.SelectablePrefixes.AsSelectable)
+        | CompletedStep.Emoji _ -> restartAt (Step.Emoji model.SelectableEmojis.AsSelectable)
         | CompletedStep.BreakingChange breakingChange ->
             let model = restartAt (Step.BreakingChange(breakingChange, invalidInput = None))
 
@@ -102,14 +116,14 @@ let rec private rollback (model: Model) =
 
 let private startEmojiStep selectableEmojis (model: Model) = {
     model with // ↩
-        CurrentStep = CurrentStep.start (Step.Emoji selectableEmojis)
         SelectableEmojis = selectableEmojis
+        CurrentStep = CurrentStep.start (Step.Emoji selectableEmojis.AsSelectable)
 }
 
 let private startPrefixStep selectablePrefixes (model: Model) = {
     model with // ↩
-        CurrentStep = CurrentStep.start (Step.Prefix selectablePrefixes)
         SelectablePrefixes = selectablePrefixes
+        CurrentStep = CurrentStep.start (Step.Prefix selectablePrefixes.AsSelectable)
 }
 
 let private startBreakingChangeStep selectedEmoji selectedPrefix (model: Model) = {
@@ -208,7 +222,7 @@ let private tryCompleteCurrentStep strategy (model: Model) =
     // Steps using the given matching strategy
     | Step.Prefix _ when model.CurrentStep.Input = CommandChar.Emoji && model.CompletedSteps = [] ->
         // Switch the start step to Emoji selection
-        { model with CurrentStep = CurrentStep.start (Step.Emoji model.SelectableEmojis) }
+        { model with CurrentStep = CurrentStep.start (Step.Emoji model.SelectableEmojis.AsSelectable) }
     | Step.Prefix(Match strategy selectedPrefix) -> model |> completePrefixStep selectedPrefix
     | Step.Prefix _ -> model
 
@@ -240,10 +254,17 @@ let rec private tryCompleteManySteps strategy model =
         tryCompleteManySteps strategy completedModel // Try complete more steps in a row.
 
 let update (msg: Msg) (model: Model) =
-    let model = { model with Model.CurrentStep.Confirmed = (msg = Enter) }
+    let model = // ↩
+        { model with Model.CurrentStep.Confirmed = (msg = Enter) }
 
     match msg, model.CurrentStep with
     | Backspace, { Input = IsEmpty } -> model |> rollback
-    | Backspace, _ -> model // Let the TextBox handle the backspace and change the input.
-    | Enter, _ -> model |> tryCompleteManySteps FirstMatch
+    | Backspace, { Input = input } -> { model with Model.CurrentStep.Input = input[.. input.Length - 2] } |> findMatches
     | InputChanged input, _ -> { model with Model.CurrentStep.Input = input } |> findMatches |> tryCompleteManySteps ExactMatch
+    | Enter, _ -> model |> tryCompleteManySteps FirstMatchAtIndex
+    | Down, { Step = Step.Prefix prefixes } -> { model with Model.CurrentStep.Step = prefixes |> SelectableList.selectNext |> Step.Prefix }
+    | Down, { Step = Step.Emoji emojis } -> { model with Model.CurrentStep.Step = emojis |> SelectableList.selectNext |> Step.Emoji }
+    | Down, _ -> model // No change for other steps
+    | Up, { Step = Step.Prefix prefixes } -> { model with Model.CurrentStep.Step = prefixes |> SelectableList.selectPrevious |> Step.Prefix }
+    | Up, { Step = Step.Emoji emojis } -> { model with Model.CurrentStep.Step = emojis |> SelectableList.selectPrevious |> Step.Emoji }
+    | Up, _ -> model // No change for other steps

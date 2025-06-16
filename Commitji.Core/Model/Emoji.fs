@@ -81,13 +81,9 @@ type Emoji =
     | Wrench
     | Zap
 
-[<RequireQualifiedAccess>]
-module Emoji =
-    let All = Helpers.Reflection.getEnumLikeUnionCases<Emoji> ()
-
-    let props emoji =
+    member this.Props =
         let char, code, hint =
-            match emoji with
+            match this with
             | AdhesiveBandage -> "🩹", "adhesive_bandage", "Simple fix for a non-critical issue."
             | Airplane -> "✈️", "airplane", "Improve offline support."
             | Alembic -> "⚗️", "alembic", "Perform experiments."
@@ -168,3 +164,11 @@ module Emoji =
             Code = code
             Hint = hint
         |}
+
+    member this.Char = this.Props.Char
+    member this.Code = this.Props.Code
+    member this.Hint = this.Props.Hint
+
+[<RequireQualifiedAccess>]
+module Emoji =
+    let All = Helpers.Reflection.getEnumLikeUnionCases<Emoji> ()
