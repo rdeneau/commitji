@@ -27,6 +27,7 @@ let private run () =
             | ConsoleKey.Enter, _, _ -> dispatch Msg.Enter
             | _, 'c', ConsoleModifiers.Control -> shouldEnd <- true
             | _, c, ConsoleModifiers.None -> dispatch (Msg.InputChanged $"%s{model.CurrentStep.Input}%c{c}")
+            | _, Char.MinValue, _ -> () // Ignore other control keys
             | _ -> ()
 
 [<EntryPoint>]
