@@ -264,7 +264,7 @@ let update (msg: Msg) (model: Model) =
     match msg, model.CurrentStep with
     | Backspace, { Input = IsEmpty } -> model |> rollback
     | Backspace, { Input = input } -> { model with Model.CurrentStep.Input = input[.. input.Length - 2] } |> findMatches
-    | InputChanged input, _ -> { model with Model.CurrentStep.Input = input } |> findMatches |> tryCompleteManySteps ExactMatch
+    | InputText input, _ -> { model with Model.CurrentStep.Input = input } |> findMatches |> tryCompleteManySteps ExactMatch
     | Enter, _ -> model |> tryCompleteManySteps FirstMatchAtIndex
     | Down, { Step = Step.Prefix prefixes } -> { model with Model.CurrentStep.Step = prefixes |> SelectableList.selectNext |> Step.Prefix }
     | Up, { Step = Step.Prefix prefixes } -> { model with Model.CurrentStep.Step = prefixes |> SelectableList.selectPrevious |> Step.Prefix }
