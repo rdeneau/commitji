@@ -51,7 +51,7 @@ type Msg =
     | Enter
     | Down
     | Up
-    | InputChanged of input: string
+    | InputText of input: string
 
 [<RequireQualifiedAccess>]
 module CommandChar =
