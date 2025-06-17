@@ -13,3 +13,8 @@ module Reflection =
                     if c.GetFields().Length = 0 then
                         FSharpValue.MakeUnion(c, [||]) :?> 'T
         ]
+
+[<RequireQualifiedAccess>]
+module String =
+    let (|IsEmpty|IsNotEmpty|) (s: string) =
+        if s.Length = 0 then IsEmpty else IsNotEmpty

@@ -1,6 +1,7 @@
 ﻿module Commitji.Core.State
 
 open System
+open Commitji.Core.Helpers
 open Commitji.Core.Model
 
 type private MatchingStrategy =
@@ -62,32 +63,31 @@ let init () = {
     PreviousFullCompletion = None
 }
 
-let private (|IsEmpty|IsNotEmpty|) (input: string) =
-    if input.Length = 0 then IsEmpty else IsNotEmpty
-
-let private findMatchingPrefixes (model: Model) =
-    match model.CurrentStep.Input with
-    | IsEmpty -> model.SelectablePrefixes
-    | IsNotEmpty -> [
-        for prefix in model.SelectablePrefixes do
-            if prefix.Code.StartsWith(model.CurrentStep.Input, StringComparison.OrdinalIgnoreCase) then
-                prefix
-      ]
-
-let private findMatchingEmojis (model: Model) =
-    match model.CurrentStep.Input with
-    | IsEmpty -> model.SelectableEmojis
-    | IsNotEmpty -> [
-        for emoji in model.SelectableEmojis do
-            if emoji.Code.Contains(model.CurrentStep.Input, StringComparison.OrdinalIgnoreCase) then
-                emoji
-      ]
-
 let private findMatches (model: Model) =
-    match model.CurrentStep.Step with
-    | Step.Prefix _ -> { model with Model.CurrentStep.Step = findMatchingPrefixes model |> SelectableList.Create |> Step.Prefix }
-    | Step.Emoji _ -> { model with Model.CurrentStep.Step = findMatchingEmojis model |> SelectableList.Create |> Step.Emoji }
-    | _ -> model
+    // TODO: handle selection by number
+    let input = model.CurrentStep.Input
+
+    let findBy textsOf (candidates: 't list) =
+        let matches =
+            match input with
+            | String.IsEmpty -> candidates
+            | String.IsNotEmpty -> [
+                for candidate in candidates do
+                    for text: string in textsOf candidate do
+                        if text.Contains(input, StringComparison.OrdinalIgnoreCase) then
+                            candidate
+              ]
+
+        SelectableList.Create matches
+
+    let step =
+        match model.CurrentStep.Step with
+        // TODO: handle full-text search: include Hint in the search
+        | Step.Prefix _ -> model.SelectablePrefixes |> findBy (fun prefix -> [ prefix.Code ]) |> Step.Prefix
+        | Step.Emoji _ -> model.SelectableEmojis |> findBy (fun emoji -> [ emoji.Code ]) |> Step.Emoji
+        | step -> step
+
+    { model with Model.CurrentStep.Step = step }
 
 /// Restart the previous step, if any.
 [<TailCall>]
@@ -262,7 +262,7 @@ let update (msg: Msg) (model: Model) =
         { model with Model.CurrentStep.Confirmed = (msg = Enter) }
 
     match msg, model.CurrentStep with
-    | Backspace, { Input = IsEmpty } -> model |> rollback
+    | Backspace, { Input = IsEmpty } -> model |> rollback // TODO RDE: fix emojis list not reset (scenario: select a prefix, backspace, ':')
     | Backspace, { Input = input } -> { model with Model.CurrentStep.Input = input[.. input.Length - 2] } |> findMatches
     | InputChanged input, _ -> { model with Model.CurrentStep.Input = input } |> findMatches |> tryCompleteManySteps ExactMatch
     | Enter, _ -> model |> tryCompleteManySteps FirstMatchAtIndex
