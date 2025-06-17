@@ -6,12 +6,14 @@ let highlight (input: string) (text: string) =
     match input.Length with
     | 0 -> text
     | n ->
-        match text.IndexOf(input, StringComparison.OrdinalIgnoreCase) with
-        | -1 -> text
-        | i ->
-            let before = text[.. i - 1]
-            let after = text[i + n ..]
-            $"{before}[grey19 on yellow]%s{input}[/]%s{after}"
+        let rec loop (current: string) fragments =
+            match current.IndexOf(input, StringComparison.OrdinalIgnoreCase) with
+            | -1 -> (String.concat "" fragments) + current
+            | i ->
+                let before = current[.. i - 1]
+                loop current[i + n ..] (before :: $"[grey19 on yellow]%s{current[i .. i + n - 1]}[/]" :: fragments)
+
+        loop text []
 
 let kbd text = $"[white on grey][[%s{text}]][/]"
 
