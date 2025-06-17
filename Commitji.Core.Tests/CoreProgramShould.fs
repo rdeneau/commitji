@@ -349,7 +349,7 @@ module ``1_ select prefix first`` =
     let ``filter prefixes to match the given input`` (InputWithManyMatchingPrefixes(input, expectedPrefixes)) =
         let actual =
             initial // ↩
-            |> update (Msg.InputText input)
+            |> update (Msg.InputChanged input)
 
         actual
         |> shouldHave [
@@ -363,7 +363,7 @@ module ``1_ select prefix first`` =
 
         let actual =
             initial // ↩
-            |> update (Msg.InputText input)
+            |> update (Msg.InputChanged input)
             |> update Msg.Enter
 
         actual |> shouldHave [ CompletedSteps [ CompletedStep.Prefix expectedPrefix ] ]
@@ -372,7 +372,7 @@ module ``1_ select prefix first`` =
     let ``select the exact matching prefix`` (MinInputWithMatchingPrefixAndEmojis(exactPrefixInput, expectedPrefix, _)) =
         let actual =
             initial // ↩
-            |> update (Msg.InputText exactPrefixInput)
+            |> update (Msg.InputChanged exactPrefixInput)
 
         actual |> shouldHave [ CompleteStep(CompletedStep.Prefix expectedPrefix) ]
 
@@ -381,7 +381,7 @@ module ``2_ select emoji after prefix`` =
     let ``limit the selectable emojis according to the selected prefix`` (MinInputWithMatchingPrefixAndEmojis(exactPrefixInput, _, expectedEmojis)) =
         let actual =
             initial // ↩
-            |> update (Msg.InputText exactPrefixInput)
+            |> update (Msg.InputChanged exactPrefixInput)
 
         actual
         |> shouldHave [
@@ -395,7 +395,7 @@ module ``2_ select emoji after prefix`` =
 
         let actual =
             initial // ↩
-            |> update (Msg.InputText exactPrefixInput)
+            |> update (Msg.InputChanged exactPrefixInput)
             |> update Msg.Enter
 
         actual
@@ -408,7 +408,7 @@ module ``2_ select emoji after prefix`` =
     let ``select both Revert prefix and Rewind emoji when inputting 'rev'`` () =
         let actual =
             initial // ↩
-            |> update (Msg.InputText "rev")
+            |> update (Msg.InputChanged "rev")
 
         actual
         |> shouldHave [
@@ -421,7 +421,7 @@ module ``3_ select emoji first`` =
     let ``switch to emoji selection when typing the character ':'`` () =
         let actual =
             initial // ↩
-            |> update (Msg.InputText ":")
+            |> update (Msg.InputChanged ":")
 
         actual
         |> shouldHave [
@@ -433,8 +433,8 @@ module ``3_ select emoji first`` =
     let ``filter emojis to match the given input`` (InputWithManyMatchingEmojis(input, expectedEmojis)) =
         let actual =
             initial // ↩
-            |> update (Msg.InputText ":")
-            |> update (Msg.InputText input)
+            |> update (Msg.InputChanged ":")
+            |> update (Msg.InputChanged input)
 
         actual
         |> shouldHave [
@@ -448,8 +448,8 @@ module ``3_ select emoji first`` =
 
         let actual =
             initial // ↩
-            |> update (Msg.InputText ":")
-            |> update (Msg.InputText input)
+            |> update (Msg.InputChanged ":")
+            |> update (Msg.InputChanged input)
             |> update Msg.Enter
 
         actual |> shouldHave [ CompleteStep(CompletedStep.Emoji expectedSelectedEmoji) ]
@@ -458,8 +458,8 @@ module ``3_ select emoji first`` =
     let ``select the emoji matching exactly the given input`` (MinInputWithMatchingEmojiWithManyPrefixes(exactEmojiInput, expectedSelectedEmoji, _)) =
         let actual =
             initial // ↩
-            |> update (Msg.InputText ":")
-            |> update (Msg.InputText exactEmojiInput)
+            |> update (Msg.InputChanged ":")
+            |> update (Msg.InputChanged exactEmojiInput)
 
         actual |> shouldHave [ CompleteStep(CompletedStep.Emoji expectedSelectedEmoji) ]
 
@@ -468,8 +468,8 @@ module ``4_ select prefix after emoji`` =
     let ``limit the selectable prefixes according to the selected emoji`` (MinInputWithMatchingEmojiWithManyPrefixes(exactEmojiInput, _, expectedPrefixes)) =
         let actual =
             initial // ↩
-            |> update (Msg.InputText ":")
-            |> update (Msg.InputText exactEmojiInput)
+            |> update (Msg.InputChanged ":")
+            |> update (Msg.InputChanged exactEmojiInput)
 
         actual
         |> shouldHave [
@@ -483,8 +483,8 @@ module ``4_ select prefix after emoji`` =
 
         let actual =
             initial // ↩
-            |> update (Msg.InputText ":")
-            |> update (Msg.InputText exactEmojiInput)
+            |> update (Msg.InputChanged ":")
+            |> update (Msg.InputChanged exactEmojiInput)
             |> update Msg.Enter
 
         actual
@@ -497,8 +497,8 @@ module ``4_ select prefix after emoji`` =
     let ``select directly the single possible prefix`` (MinInputWithMatchingEmojiWithSinglePrefix(exactEmojiInput, expectedSelectedEmoji, expectedPrefix)) =
         let actual =
             initial // ↩
-            |> update (Msg.InputText ":")
-            |> update (Msg.InputText exactEmojiInput)
+            |> update (Msg.InputChanged ":")
+            |> update (Msg.InputChanged exactEmojiInput)
 
         actual
         |> shouldHave [
@@ -515,8 +515,8 @@ module ``5_ select breaking change`` =
 
         let actual =
             initial // ↩
-            |> update (Msg.InputText input)
-            |> update (Msg.InputText "boo")
+            |> update (Msg.InputChanged input)
+            |> update (Msg.InputChanged "boo")
 
         actual
         |> shouldHave [
@@ -531,9 +531,9 @@ module ``5_ select breaking change`` =
 
         let actual =
             initial // ↩
-            |> update (Msg.InputText exactPrefixInput)
+            |> update (Msg.InputChanged exactPrefixInput)
             |> update Msg.Enter // Select first emoji
-            |> update (Msg.InputText "y") // Confirm breaking change
+            |> update (Msg.InputChanged "y") // Confirm breaking change
 
         actual
         |> shouldHave [
@@ -548,7 +548,7 @@ module ``5_ select breaking change`` =
 
         let actual =
             initial // ↩
-            |> update (Msg.InputText exactPrefixInput)
+            |> update (Msg.InputChanged exactPrefixInput)
             |> update Msg.Enter // Select first emoji
             |> update Msg.Enter // Confirm no breaking change
 
@@ -564,9 +564,9 @@ module ``5_ select breaking change`` =
         if invalidInput <> "!" then
             let actual =
                 initial // ↩
-                |> update (Msg.InputText exactPrefixInput)
+                |> update (Msg.InputChanged exactPrefixInput)
                 |> update Msg.Enter // Select first emoji
-                |> update (Msg.InputText invalidInput)
+                |> update (Msg.InputChanged invalidInput)
 
             actual
             |> shouldHave [ CurrentStep(Step.BreakingChange({ Selected = false; Disabled = false }, invalidInput = Some invalidInput)) ]
@@ -577,7 +577,7 @@ module ``5_ select breaking change`` =
 
         let actual =
             initial // ↩
-            |> update (Msg.InputText exactPrefixInput)
+            |> update (Msg.InputChanged exactPrefixInput)
             |> update Msg.Enter
 
         actual
@@ -592,9 +592,9 @@ module ``6_ determine semantic version change`` =
     let ``indicate major given a feat or a fix with breaking change`` (MinInputMatchingFeatOrFixWithEmojis(exactPrefixInput, _, _)) =
         let actual =
             initial // ↩
-            |> update (Msg.InputText exactPrefixInput)
+            |> update (Msg.InputChanged exactPrefixInput)
             |> update Msg.Enter // Select first emoji
-            |> update (Msg.InputText "y") // Confirm breaking change
+            |> update (Msg.InputChanged "y") // Confirm breaking change
 
         actual |> shouldHave [ CurrentStep(Step.Confirmation(Some SemVerChange.Major, invalidInput = None)) ]
 
@@ -602,7 +602,7 @@ module ``6_ determine semantic version change`` =
     let ``indicate minor given a fix with no breaking change`` () =
         let actual =
             initial // ↩
-            |> update (Msg.InputText "fi")
+            |> update (Msg.InputChanged "fi")
             |> update Msg.Enter // Select first emoji
             |> update Msg.Enter // Confirm no breaking change
 
@@ -612,7 +612,7 @@ module ``6_ determine semantic version change`` =
     let ``indicate patch given a feat with no breaking change`` () =
         let actual =
             initial // ↩
-            |> update (Msg.InputText "fe")
+            |> update (Msg.InputChanged "fe")
             |> update Msg.Enter // Select first emoji
             |> update Msg.Enter // Confirm no breaking change
 
@@ -622,7 +622,7 @@ module ``6_ determine semantic version change`` =
     let ``indicate none given other prefix`` (MinInputWithMatchingEmojiWithManyPrefixesAndNoBreakingChange(exactPrefixInput, _, _)) =
         let actual =
             initial // ↩
-            |> update (Msg.InputText exactPrefixInput)
+            |> update (Msg.InputChanged exactPrefixInput)
             |> update Msg.Enter // Select first emoji - No possible breaking change detected
 
         actual |> shouldHave [ CurrentStep(Step.Confirmation(None, invalidInput = None)) ]
@@ -648,7 +648,7 @@ module ``7_ confirm selections`` =
 
     [<Property>]
     let ``any input is considered invalid at this step`` (NonEmptyString invalidInput) (ModelReadyForConfirmation(model, _)) =
-        let actual = model |> update (Msg.InputText invalidInput)
+        let actual = model |> update (Msg.InputChanged invalidInput)
         actual |> shouldHave [ CurrentStep(model.CurrentStep.Step |> Step.setInvalidInput invalidInput) ]
 
     [<Property>]
