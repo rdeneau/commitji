@@ -12,6 +12,7 @@
     <Compile Include="Model\Relation.fs" />
     <Compile Include="Model\BreakingChange.fs" />
     <Compile Include="Model\SemVerChange.fs" />
+    <Compile Include="Model\Search.fs" />
     <Compile Include="Types.fs" />
     <Compile Include="State.fs" />
   </ItemGroup>
