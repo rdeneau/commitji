@@ -10,9 +10,6 @@ type Choice = SearchSegment<SegmentId> list
 [<Literal>]
 let private HalfPageSize = 5
 
-[<Literal>]
-let private PageSize = 2 * HalfPageSize
-
 module private Markup =
     let private promptSegment isCurrent segmentId text =
         match segmentId, isCurrent with
@@ -46,17 +43,71 @@ module private Markup =
             | SegmentId.Hint -> ""
     |]
 
-type SelectionPrompt =
-    static member codeChoice code = [ // ↩
-        SearchSegment.create SegmentId.Code code (SegmentState.Searchable SearchOperation.StartsWith)
-    ]
+type SelectionPrompt(?halfPageSize) =
+    static let defaultInstance = SelectionPrompt()
+
+    let halfPageSize = defaultArg halfPageSize HalfPageSize
+    let pageSize = 2 * halfPageSize
+
+    member _.compute(currentChoiceIndex) =
+        fun (choices: Choice list) ->
+            let nbChoices =
+                choices.Length
+
+            let segmentIds =
+                match choices with
+                | [] -> []
+                | firstChoice :: _ -> [ for segment in firstChoice -> segment.Id ]
+
+            let props =
+                let minIndex = currentChoiceIndex - halfPageSize
+                let maxIndex = currentChoiceIndex + halfPageSize - 1
+
+                // First half-page
+                if minIndex <= 0 then
+                    {|
+                        hasPrevious = false
+                        hasNext = pageSize < nbChoices
+                        minIndex = 0
+                        maxIndex = pageSize - 1
+                    |}
+
+                // Last half-page
+                elif (maxIndex + 1) >= nbChoices then
+                    {|
+                        hasPrevious = nbChoices > pageSize
+                        hasNext = false
+                        minIndex = nbChoices - pageSize
+                        maxIndex = nbChoices - 1
+                    |}
+
+                // Middle page, around the current choice
+                else
+                    {|
+                        hasPrevious = minIndex > 0
+                        hasNext = (maxIndex + 1) < nbChoices
+                        minIndex = minIndex
+                        maxIndex = maxIndex
+                    |}
+
+            {|
+                rows = [
+                    for index, choice in List.indexed choices do
+                        if (index = props.minIndex && props.hasPrevious) || (index = props.maxIndex && props.hasNext) then
+                            Markup.promptOtherChoice segmentIds
+                        elif index >= props.minIndex && index <= props.maxIndex then
+                            let isCurrentChoice = (index = currentChoiceIndex)
+                            Markup.promptChoice isCurrentChoice choice
+                ]
+                segmentIds = segmentIds
+            |}
 
     static member render(currentChoiceIndex) =
-        fun (choices: Choice array) ->
-            let segmentIds = [ for segment in choices[0] -> segment.Id ]
+        fun (choices: Choice list) ->
+            let model = defaultInstance.compute currentChoiceIndex choices
 
             let grid =
-                (Grid(), segmentIds)
+                (Grid(), model.segmentIds)
                 ||> List.fold (fun grid segmentType ->
                     let column = GridColumn().NoWrap()
 
@@ -67,45 +118,8 @@ type SelectionPrompt =
                     grid.AddColumn(column)
                 )
 
-            let addOther () =
-                grid.AddRow(Markup.promptOtherChoice segmentIds) |> ignore
-
-            let props =
-                let minIndex = currentChoiceIndex - HalfPageSize
-                let maxIndex = currentChoiceIndex + HalfPageSize - 1
-
-                // First half-page
-                if minIndex <= 0 then
-                    {|
-                        hasPrevious = false
-                        hasNext = PageSize < choices.Length
-                        minIndex = 0
-                        maxIndex = PageSize - 1
-                    |}
-
-                // Last half-page
-                elif (maxIndex + 1) >= choices.Length then
-                    {|
-                        hasPrevious = choices.Length > PageSize
-                        hasNext = false
-                        minIndex = choices.Length - PageSize
-                        maxIndex = choices.Length - 1
-                    |}
-
-                // Middle page, around the current choice
-                else
-                    {|
-                        hasPrevious = minIndex > 0
-                        hasNext = (maxIndex + 1) < choices.Length
-                        minIndex = minIndex
-                        maxIndex = maxIndex
-                    |}
-
-            for index, choice in Array.indexed choices do
-                if (index = props.minIndex && props.hasPrevious) || (index = props.maxIndex && props.hasNext) then
-                    addOther ()
-                elif index >= props.minIndex && index <= props.maxIndex then
-                    let isCurrentChoice = (index = currentChoiceIndex)
-                    grid.AddRow(Markup.promptChoice isCurrentChoice choice) |> ignore
+            let grid =
+                (grid, model.rows)
+                ||> List.fold _.AddRow
 
             AnsiConsole.Write(grid)
