@@ -1,4 +1,4 @@
-﻿module Commitji.Core.Tests.SearchShould
+﻿module Commitji.Tests.Core.SearchShould
 
 open System
 open Commitji.Core.Helpers
@@ -44,7 +44,7 @@ module Item =
         }
 
         member item.ToSegmentHit(segmentType, hits) =
-            item.ToSearchSegment(segmentType, SegmentStateAfterSearch.Searched hits)
+            item.ToSearchSegment(segmentType, SegmentState.Searched hits)
 
     let (|PrefixItem|) (prefix: Prefix) = {
         Type = ItemType.Prefix prefix
@@ -93,11 +93,11 @@ module ``1_ init - helpers`` =
         | ByLabelContent
         | FullText
 
-    type SearchSegments<'state when 'state: equality> = {
+    type SearchSegments = {
         Item: Item
-        NumState: 'state option
-        CodeState: 'state option
-        LabelState: 'state option
+        NumState: SegmentState option
+        CodeState: SegmentState option
+        LabelState: SegmentState option
     } with
         static member Init(item) = {
             Item = item
@@ -117,8 +117,7 @@ module ``1_ init - helpers`` =
             LabelState = Some state
         }
 
-        member this.AllNotSearchable() =
-            this.All(SegmentInitState.NotSearchable)
+        member this.AllNotSearchable() = this.All(SegmentState.NotSearchable)
 
         member this.ToList() = [
             match this.NumState with
@@ -135,41 +134,41 @@ module ``1_ init - helpers`` =
         ]
 
     let initSegmentsByIndex segments searchType =
-        let finalizeBuild (searchSegments: SearchSegments<SegmentInitState>) =
+        let finalizeBuild (searchSegments: SearchSegments) =
             match segments, searchType with
             | Segments.CodeOnly, (Search.ByNum | Search.ByLabelContent) -> // ↩
-                searchSegments.WithCodeState(SegmentInitState.NotSearchable).ToList()
+                searchSegments.WithCodeState(SegmentState.NotSearchable).ToList()
 
             | Segments.CodeOnly, Search.ByCodeStart -> // ↩
-                searchSegments.WithCodeState(SegmentInitState.Searchable SearchOperation.StartsWith).ToList()
+                searchSegments.WithCodeState(SegmentState.Searchable SearchOperation.StartsWith).ToList()
 
             | Segments.CodeOnly, Search.ByCodeContent -> // ↩
-                searchSegments.WithCodeState(SegmentInitState.Searchable SearchOperation.Contains).ToList()
+                searchSegments.WithCodeState(SegmentState.Searchable SearchOperation.Contains).ToList()
 
             | Segments.CodeOnly, Search.FullText -> // ↩
-                searchSegments.WithCodeState(SegmentInitState.Searchable SearchOperation.Contains).ToList()
+                searchSegments.WithCodeState(SegmentState.Searchable SearchOperation.Contains).ToList()
 
             | Segments.All, Search.ByNum -> // ↩
-                searchSegments.AllNotSearchable().WithNumState(SegmentInitState.Searchable SearchOperation.StartsWith).ToList()
+                searchSegments.AllNotSearchable().WithNumState(SegmentState.Searchable SearchOperation.StartsWith).ToList()
 
             | Segments.All, Search.ByCodeStart -> // ↩
-                searchSegments.AllNotSearchable().WithCodeState(SegmentInitState.Searchable SearchOperation.StartsWith).ToList()
+                searchSegments.AllNotSearchable().WithCodeState(SegmentState.Searchable SearchOperation.StartsWith).ToList()
 
             | Segments.All, Search.ByCodeContent -> // ↩
-                searchSegments.AllNotSearchable().WithCodeState(SegmentInitState.Searchable SearchOperation.Contains).ToList()
+                searchSegments.AllNotSearchable().WithCodeState(SegmentState.Searchable SearchOperation.Contains).ToList()
 
             | Segments.All, Search.ByLabelContent -> // ↩
-                searchSegments.AllNotSearchable().WithLabelState(SegmentInitState.Searchable SearchOperation.Contains).ToList()
+                searchSegments.AllNotSearchable().WithLabelState(SegmentState.Searchable SearchOperation.Contains).ToList()
 
             | Segments.All, Search.FullText ->
                 searchSegments // ↩
-                    .WithNumState(SegmentInitState.Searchable SearchOperation.StartsWith)
-                    .WithCodeState(SegmentInitState.Searchable SearchOperation.Contains)
-                    .WithLabelState(SegmentInitState.Searchable SearchOperation.Contains)
+                    .WithNumState(SegmentState.Searchable SearchOperation.StartsWith)
+                    .WithCodeState(SegmentState.Searchable SearchOperation.Contains)
+                    .WithLabelState(SegmentState.Searchable SearchOperation.Contains)
                     .ToList()
 
         fun _index (item: Item) ->
-            let searchSegments = SearchSegments<SegmentInitState>.Init(item)
+            let searchSegments = SearchSegments.Init(item)
             finalizeBuild searchSegments
 
 module ``1_ init`` =
@@ -187,10 +186,10 @@ module ``1_ init`` =
                             State =
                                 match searchType with
                                 | Search.ByNum
-                                | Search.ByLabelContent -> SegmentInitState.NotSearchable
-                                | Search.ByCodeStart -> SegmentInitState.Searchable SearchOperation.StartsWith
+                                | Search.ByLabelContent -> SegmentState.NotSearchable
+                                | Search.ByCodeStart -> SegmentState.Searchable SearchOperation.StartsWith
                                 | Search.ByCodeContent
-                                | Search.FullText -> SegmentInitState.Searchable SearchOperation.Contains
+                                | Search.FullText -> SegmentState.Searchable SearchOperation.Contains
                         }
                     ]
                 }
@@ -214,10 +213,10 @@ module ``1_ init`` =
                             State =
                                 match searchType with
                                 | Search.ByNum
-                                | Search.FullText -> SegmentInitState.Searchable SearchOperation.StartsWith
+                                | Search.FullText -> SegmentState.Searchable SearchOperation.StartsWith
                                 | Search.ByLabelContent
                                 | Search.ByCodeStart
-                                | Search.ByCodeContent -> SegmentInitState.NotSearchable
+                                | Search.ByCodeContent -> SegmentState.NotSearchable
                         }
                         {
                             Id = SegmentType.Code
@@ -225,10 +224,10 @@ module ``1_ init`` =
                             State =
                                 match searchType with
                                 | Search.ByNum
-                                | Search.ByLabelContent -> SegmentInitState.NotSearchable
-                                | Search.ByCodeStart -> SegmentInitState.Searchable SearchOperation.StartsWith
+                                | Search.ByLabelContent -> SegmentState.NotSearchable
+                                | Search.ByCodeStart -> SegmentState.Searchable SearchOperation.StartsWith
                                 | Search.ByCodeContent
-                                | Search.FullText -> SegmentInitState.Searchable SearchOperation.Contains
+                                | Search.FullText -> SegmentState.Searchable SearchOperation.Contains
                         }
                         {
                             Id = SegmentType.Label
@@ -236,10 +235,10 @@ module ``1_ init`` =
                             State =
                                 match searchType with
                                 | Search.FullText
-                                | Search.ByLabelContent -> SegmentInitState.Searchable SearchOperation.Contains
+                                | Search.ByLabelContent -> SegmentState.Searchable SearchOperation.Contains
                                 | Search.ByCodeStart
                                 | Search.ByCodeContent
-                                | Search.ByNum -> SegmentInitState.NotSearchable
+                                | Search.ByNum -> SegmentState.NotSearchable
                         }
                     ]
                 }
@@ -252,8 +251,8 @@ module ``1_ init`` =
 [<AutoOpen>]
 module ``2_ run - common - helpers`` =
     [<RequireQualifiedAccess>]
-    module SearchedList =
-        let autoIndex (list: SearchedList<'t, 'id>) =
+    module SearchableList =
+        let autoIndex (list: SearchableList<'t, 'id>) =
             list |> List.mapi (fun index item -> { item with Index = index })
 
     [<RequireQualifiedAccess>]
@@ -275,25 +274,26 @@ module ``2_ run - common - helpers`` =
         $"%A{input}" |> removeLeadingUnderscore |> changeCase
 
     [<RequireQualifiedAccess>]
-    module Is =
-        let notSearchable = SegmentStateAfterSearch.NotSearchable
-        let notFound = SegmentStateAfterSearch.Searched []
-        let foundAtTheStart = SegmentStateAfterSearch.Searched [ 0 ]
-        let foundOnceAt hit = SegmentStateAfterSearch.Searched [ hit ]
-        let foundTwiceAt hit1 hit2 = SegmentStateAfterSearch.Searched [ hit1; hit2 ]
+    type Fixture(len) =
+        member _.NotSearchable = SegmentState.NotSearchable
+        member _.NotFound = SegmentState.Searched([], len)
+        member _.FoundAt([<ParamArray>] hits) = SegmentState.Searched(List.ofArray hits, len)
+        member x.FoundAtTheStart = x.FoundAt(0)
+        member x.FoundOnceAt(i: int) = x.FoundAt(i)
+        member x.FoundTwiceAt(i, j) = x.FoundAt(i, j)
 
     type Item with
         /// <remarks>
-        /// ⚠️ The `Index` is set to -1 → Call `SearchedList.autoIndex` on the list to set the correct index.<br/>
-        /// 💡 For `defaultValue`, use `Is.notSearchable` (normal search) or `Is.notFound` (full-text search).<br/>
+        /// ⚠️ The `Index` is set to -1 → Call `SearchableList.autoIndex` on the list to set the correct index.<br/>
+        /// 💡 For `defaultValue`, use `_.notSearchable` (normal search) or `_.notFound` (full-text search).<br/>
         /// </remarks>
-        member item.ToSearchSegment(num, code, label, defaultValue) = {
+        member item.ToSearchSegment(fixture: Fixture, num, code, label, defaultValue) = {
             Item = item
             Index = -1
             Segments = [ // ↩
-                item.ToSearchSegment(SegmentType.Num, defaultArg num defaultValue)
-                item.ToSearchSegment(SegmentType.Code, defaultArg code defaultValue)
-                item.ToSearchSegment(SegmentType.Label, defaultArg label defaultValue)
+                item.ToSearchSegment(SegmentType.Num, (defaultArg num defaultValue) fixture)
+                item.ToSearchSegment(SegmentType.Code, (defaultArg code defaultValue) fixture)
+                item.ToSearchSegment(SegmentType.Label, (defaultArg label defaultValue) fixture)
             ]
         }
 
@@ -320,9 +320,9 @@ module ``2a_ run - normal search on prefixes - helpers`` =
                 prefix, { item with Index = index }
         ]
 
-    type Prefix with
-        member prefix.ToSearchSegment(?num, ?code, ?label) =
-            AllPrefixItems[prefix].ToSearchSegment(num, code, label, defaultValue = Is.notSearchable)
+    type Fixture with
+        member this.SearchSegment(prefix: Prefix, ?num, ?code, ?label) =
+            AllPrefixItems[prefix].ToSearchSegment(this, num, code, label, defaultValue = _.NotSearchable)
 
     [<RequireQualifiedAccess>]
     type InputForPrefixSearch =
@@ -341,87 +341,89 @@ module ``2a_ run - normal search on prefixes - helpers`` =
             | SearchOperation.StartsWith -> Search.ByCodeStart
             | SearchOperation.Contains -> Search.ByCodeContent
 
+        let fixture = Fixture(searchInput.Value.Length)
+
         let result =
             match input, searchOperation with
             // D: single-hit
-            | InputForPrefixSearch.D, SearchOperation.StartsWith -> SearchedList.autoIndex [ Prefix.Docs.ToSearchSegment(code = Is.foundAtTheStart) ]
-            | InputForPrefixSearch.D, SearchOperation.Contains -> SearchedList.autoIndex [ Prefix.Docs.ToSearchSegment(code = Is.foundAtTheStart) ]
+            | InputForPrefixSearch.D, SearchOperation.StartsWith -> SearchableList.autoIndex [ fixture.SearchSegment(Prefix.Docs, code = _.FoundAtTheStart) ]
+            | InputForPrefixSearch.D, SearchOperation.Contains -> SearchableList.autoIndex [ fixture.SearchSegment(Prefix.Docs, code = _.FoundAtTheStart) ]
 
             // F: several single-hits
             | InputForPrefixSearch.F, SearchOperation.StartsWith ->
-                SearchedList.autoIndex [ // ↩
-                    Prefix.Feat.ToSearchSegment(code = Is.foundAtTheStart)
-                    Prefix.Fix.ToSearchSegment(code = Is.foundAtTheStart)
+                SearchableList.autoIndex [ // ↩
+                    fixture.SearchSegment(Prefix.Feat, code = _.FoundAtTheStart)
+                    fixture.SearchSegment(Prefix.Fix, code = _.FoundAtTheStart)
                 ]
 
             | InputForPrefixSearch.F, SearchOperation.Contains ->
-                SearchedList.autoIndex [
-                    Prefix.Feat.ToSearchSegment(code = Is.foundAtTheStart)
-                    Prefix.Fix.ToSearchSegment(code = Is.foundAtTheStart)
+                SearchableList.autoIndex [
+                    fixture.SearchSegment(Prefix.Feat, code = _.FoundAtTheStart)
+                    fixture.SearchSegment(Prefix.Fix, code = _.FoundAtTheStart)
 
                     // ... 012345678
                     // ...   ↓
-                    Prefix.Refactor.ToSearchSegment(code = Is.foundOnceAt 2)
+                    fixture.SearchSegment(Prefix.Refactor, code = _.FoundOnceAt(2))
 
                     // ... 012345678
                     // ...    ↓
-                    Prefix.Perf.ToSearchSegment(code = Is.foundOnceAt 3)
+                    fixture.SearchSegment(Prefix.Perf, code = _.FoundOnceAt(3))
                 ]
 
             // T: double-hit (for `Test` + `Contains`)
             | InputForPrefixSearch.T, SearchOperation.StartsWith ->
-                SearchedList.autoIndex [ // ↩
-                    Prefix.Test.ToSearchSegment(code = Is.foundAtTheStart)
+                SearchableList.autoIndex [ // ↩
+                    fixture.SearchSegment(Prefix.Test, code = _.FoundAtTheStart)
                 ]
 
             | InputForPrefixSearch.T, SearchOperation.Contains ->
-                SearchedList.autoIndex [
+                SearchableList.autoIndex [
                     // ... 012345678
                     // ...    ↓
-                    Prefix.Feat.ToSearchSegment(code = Is.foundOnceAt 3)
+                    fixture.SearchSegment(Prefix.Feat, code = _.FoundOnceAt(3))
 
                     // ... 012345678
                     // ...      ↓
-                    Prefix.Refactor.ToSearchSegment(code = Is.foundOnceAt 5)
+                    fixture.SearchSegment(Prefix.Refactor, code = _.FoundOnceAt(5))
 
                     // ... 012345678
                     // ... ↓  ↓
-                    Prefix.Test.ToSearchSegment(code = Is.foundTwiceAt 0 3)
+                    fixture.SearchSegment(Prefix.Test, code = _.FoundTwiceAt(0, 3))
 
                     // ... 012345678
                     // ...      ↓
-                    Prefix.Revert.ToSearchSegment(code = Is.foundOnceAt 5)
+                    fixture.SearchSegment(Prefix.Revert, code = _.FoundOnceAt(5))
                 ]
 
             // Re: 2-char search, several single-hits
             | InputForPrefixSearch.Re, SearchOperation.StartsWith ->
-                SearchedList.autoIndex [ // ↩
-                    Prefix.Refactor.ToSearchSegment(code = Is.foundAtTheStart)
-                    Prefix.Revert.ToSearchSegment(code = Is.foundAtTheStart)
+                SearchableList.autoIndex [ // ↩
+                    fixture.SearchSegment(Prefix.Refactor, code = _.FoundAtTheStart)
+                    fixture.SearchSegment(Prefix.Revert, code = _.FoundAtTheStart)
                 ]
 
             | InputForPrefixSearch.Re, SearchOperation.Contains ->
-                SearchedList.autoIndex [
-                    Prefix.Refactor.ToSearchSegment(code = Is.foundAtTheStart)
+                SearchableList.autoIndex [
+                    fixture.SearchSegment(Prefix.Refactor, code = _.FoundAtTheStart)
 
                     // ... 012345678
                     // ...    ↓
-                    Prefix.Chore.ToSearchSegment(code = Is.foundOnceAt 3)
+                    fixture.SearchSegment(Prefix.Chore, code = _.FoundOnceAt( 3))
 
-                    Prefix.Revert.ToSearchSegment(code = Is.foundAtTheStart)
+                    fixture.SearchSegment(Prefix.Revert, code = _.FoundAtTheStart)
                 ]
 
             // Or: no hit (for `StartsWith`)
             | InputForPrefixSearch.Or, SearchOperation.StartsWith -> []
             | InputForPrefixSearch.Or, SearchOperation.Contains ->
-                SearchedList.autoIndex [
+                SearchableList.autoIndex [
                     // ... 012345678
                     // ...       ↓
-                    Prefix.Refactor.ToSearchSegment(code = Is.foundOnceAt 6)
+                    fixture.SearchSegment(Prefix.Refactor, code = _.FoundOnceAt( 6))
 
                     // ... 012345678
                     // ...   ↓
-                    Prefix.Chore.ToSearchSegment(code = Is.foundOnceAt 2)
+                    fixture.SearchSegment(Prefix.Chore, code = _.FoundOnceAt( 2))
                 ]
 
         let items = AllPrefixItems |> Map.valuesAsList
@@ -440,11 +442,12 @@ module ``2a_ run - normal search on prefixes`` =
     let ``number exact match`` prefix = // ↩
         let item = AllPrefixItems[prefix]
         let items = AllPrefixItems |> Map.valuesAsList
+        let fixture = Fixture(item.Num.Length)
 
         let actual =
             Search(initSegmentsByIndex Segments.All Search.ByNum).Run(SearchInput.create item.Num, items, StringComparison.OrdinalIgnoreCase)
 
-        actual =! SearchedList.autoIndex [ (prefix.ToSearchSegment(num = Is.foundAtTheStart)) ]
+        actual =! SearchableList.autoIndex [ fixture.SearchSegment(prefix, num = _.FoundAtTheStart) ]
 
 [<AutoOpen>]
 module ``2b_ run - full-text search on emojis - helpers`` =
@@ -534,9 +537,9 @@ module ``2b_ run - full-text search on emojis - helpers`` =
                 emoji, { item with Index = index }
         ]
 
-    type Emoji with
-        member emoji.ToSearchSegment(?num, ?code, ?label) =
-            AllEmojiItems[emoji].ToSearchSegment(num, code, label, defaultValue = Is.notFound)
+    type Fixture with
+        member this.SearchSegment(emoji: Emoji, ?num, ?code, ?label) =
+            AllEmojiItems[emoji].ToSearchSegment(this, num, code, label, defaultValue = _.NotFound)
 
     [<RequireQualifiedAccess>]
     type InputForEmojiSearch =
@@ -547,6 +550,11 @@ module ``2b_ run - full-text search on emojis - helpers`` =
         | Test
 
     let (|EmojiFullTextSearch|) (input, inputCase) =
+        let searchInput = // ↩
+            inputCase |> applyTo input |> SearchInput.create
+
+        let fixture = Fixture(searchInput.Value.Length)
+
         let result =
             match input with
             // | Num | Code                      | Label                                                         |
@@ -573,19 +581,19 @@ module ``2b_ run - full-text search on emojis - helpers`` =
             // |     |       ↑                   |                                                               |
             // |-----|---------------------------|---------------------------------------------------------------|
             | InputForEmojiSearch._2 ->
-                SearchedList.autoIndex [
-                    Emoji.Airplane.ToSearchSegment(num = Is.foundAtTheStart)
-                    Emoji.ChartWithUpwardsTrend.ToSearchSegment(num = Is.foundAtTheStart)
-                    Emoji.ChildrenCrossing.ToSearchSegment(num = Is.foundAtTheStart)
-                    Emoji.ClosedLockWithKey.ToSearchSegment(num = Is.foundAtTheStart)
-                    Emoji.ClownFace.ToSearchSegment(num = Is.foundAtTheStart)
-                    Emoji.Coffin.ToSearchSegment(num = Is.foundAtTheStart)
-                    Emoji.Construction.ToSearchSegment(num = Is.foundAtTheStart)
-                    Emoji.ConstructionWorker.ToSearchSegment(num = Is.foundAtTheStart)
-                    Emoji.Dizzy.ToSearchSegment(num = Is.foundAtTheStart)
-                    Emoji.Egg.ToSearchSegment(num = Is.foundAtTheStart)
-                    Emoji.Fire.ToSearchSegment(num = Is.foundAtTheStart)
-                    Emoji.Pencil2.ToSearchSegment(code = Is.foundOnceAt 6)
+                SearchableList.autoIndex [
+                    fixture.SearchSegment(Emoji.Airplane, num = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.ChartWithUpwardsTrend, num = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.ChildrenCrossing, num = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.ClosedLockWithKey, num = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.ClownFace, num = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.Coffin, num = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.Construction, num = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.ConstructionWorker, num = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.Dizzy, num = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.Egg, num = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.Fire, num = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.Pencil2, code = _.FoundOnceAt( 6))
                 ]
 
             // | Num | Code                      | Label                                                         |
@@ -603,10 +611,10 @@ module ``2b_ run - full-text search on emojis - helpers`` =
             // |     |                           |        ↑                                                      |
             // |-----|---------------------------|---------------------------------------------------------------|
             | InputForEmojiSearch.Build ->
-                SearchedList.autoIndex [ // ↩
-                    Emoji.BuildingConstruction.ToSearchSegment(code = Is.foundAtTheStart)
-                    Emoji.ConstructionWorker.ToSearchSegment(label = Is.foundOnceAt 17)
-                    Emoji.GreenHeart.ToSearchSegment(label = Is.foundOnceAt 7)
+                SearchableList.autoIndex [ // ↩
+                    fixture.SearchSegment(Emoji.BuildingConstruction, code = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.ConstructionWorker, label = _.FoundOnceAt( 17))
+                    fixture.SearchSegment(Emoji.GreenHeart, label = _.FoundOnceAt( 7))
                 ]
 
             // | Num | Code                      | Label                                                         |
@@ -618,8 +626,8 @@ module ``2b_ run - full-text search on emojis - helpers`` =
             // |     |       ↑                   | ↑                                                             |
             // |-----|---------------------------|---------------------------------------------------------------|
             | InputForEmojiSearch.Down ->
-                SearchedList.autoIndex [ // ↩
-                    Emoji.ArrowDown.ToSearchSegment(code = Is.foundOnceAt 6, label = Is.foundAtTheStart)
+                SearchableList.autoIndex [ // ↩
+                    fixture.SearchSegment(Emoji.ArrowDown, code = _.FoundOnceAt( 6), label = _.FoundAtTheStart)
                 ]
 
             // | Num | Code                      | Label                                                         |
@@ -641,14 +649,14 @@ module ``2b_ run - full-text search on emojis - helpers`` =
             // |     |                           | ↑                                                             |
             // |-----|---------------------------|---------------------------------------------------------------|
             | InputForEmojiSearch.Fix ->
-                SearchedList.autoIndex [
-                    Emoji.AdhesiveBandage.ToSearchSegment(label = Is.foundOnceAt 7)
-                    Emoji.Ambulance.ToSearchSegment(label = Is.foundOnceAt 12)
-                    Emoji.Bug.ToSearchSegment(label = Is.foundAtTheStart)
-                    Emoji.GreenHeart.ToSearchSegment(label = Is.foundAtTheStart)
-                    Emoji.Lock.ToSearchSegment(label = Is.foundAtTheStart)
-                    Emoji.Pencil2.ToSearchSegment(label = Is.foundAtTheStart)
-                    Emoji.RotatingLight.ToSearchSegment(label = Is.foundAtTheStart)
+                SearchableList.autoIndex [
+                    fixture.SearchSegment(Emoji.AdhesiveBandage, label = _.FoundOnceAt( 7))
+                    fixture.SearchSegment(Emoji.Ambulance, label = _.FoundOnceAt( 12))
+                    fixture.SearchSegment(Emoji.Bug, label = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.GreenHeart, label = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.Lock, label = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.Pencil2, label = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.RotatingLight, label = _.FoundAtTheStart)
                 ]
 
             // | Num | Code                      | Label                                                         |
@@ -663,9 +671,9 @@ module ``2b_ run - full-text search on emojis - helpers`` =
             // |     |                           |                      ↑                                        |
             // |-----|---------------------------|---------------------------------------------------------------|
             | InputForEmojiSearch.Test ->
-                SearchedList.autoIndex [ // ↩
-                    Emoji.TestTube.ToSearchSegment(code = Is.foundAtTheStart, label = Is.foundOnceAt 14)
-                    Emoji.WhiteCheckMark.ToSearchSegment(label = Is.foundOnceAt 21)
+                SearchableList.autoIndex [ // ↩
+                    fixture.SearchSegment(Emoji.TestTube, code = _.FoundAtTheStart, label = _.FoundOnceAt( 14))
+                    fixture.SearchSegment(Emoji.WhiteCheckMark, label = _.FoundOnceAt( 21))
                 ]
 
         let items = AllEmojiItems |> Map.valuesAsList

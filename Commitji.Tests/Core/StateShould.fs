@@ -1,4 +1,4 @@
-﻿module Commitji.Core.Tests.StateShould
+﻿module Commitji.Tests.Core.StateShould
 
 open Commitji.Core.Model
 open Commitji.Core.Model.Search
@@ -13,7 +13,7 @@ open global.Xunit
 module private SegmentsConfiguration =
     let codeOnly = {
         SegmentsConfiguration.States = // ↩
-            Map [ SegmentId.Code, SegmentInitState.Searchable SearchOperation.StartsWith ]
+            Map [ SegmentId.Code, SegmentState.Searchable SearchOperation.StartsWith ]
     }
 
 [<AutoOpen>]
@@ -117,14 +117,14 @@ module Helpers =
         | Re
         | T
 
-    let private codeHits getCode index item hits = {
+    let private codeHits getCode index item hits length = {
         Item = item
         Index = index
         Segments = [
             {
                 Id = SegmentId.Code
                 Text = getCode item
-                State = SegmentStateAfterSearch.Searched hits
+                State = SegmentState.Searched(hits, length)
             }
         ]
     }
@@ -132,73 +132,15 @@ module Helpers =
     let private prefixCodeHits index item hits =
         codeHits (fun (x: Prefix) -> x.Code) index item hits
 
-    // TODO: test search prefix anywhere (not just at the start)
-    // let (|InputWithManyMatchingPrefixes|) =
-    //     function
-    //     | InputMatchingManyPrefixes.Blank -> "", SelectableList.prefixes SegmentsConfiguration.codeOnly Prefix.All
-    //     | InputMatchingManyPrefixes.F ->
-    //         "f",
-    //         SelectableList.init [
-    //             //                    0123456789
-    //             //                    ↓
-    //             prefixCodeHits Prefix.Feat [ 0 ]
-    //
-    //             //                    0123456789
-    //             //                    ↓
-    //             prefixCodeHits Prefix.Fix [ 0 ]
-    //
-    //             //                    0123456789
-    //             //                      ↓
-    //             prefixCodeHits Prefix.Refactor [ 2 ]
-    //
-    //             //                    0123456789
-    //             //                       ↓
-    //             prefixCodeHits Prefix.Perf [ 3 ]
-    //         ]
-    //     | InputMatchingManyPrefixes.Re ->
-    //         "re",
-    //         SelectableList.init [
-    //             //                    0123456789
-    //             //                    ↓↓
-    //             prefixCodeHits Prefix.Refactor [ 0 ]
-    //
-    //             //                    0123456789
-    //             //                       ↓↓
-    //             prefixCodeHits Prefix.Chore [ 3 ]
-    //
-    //             //                    0123456789
-    //             //                    ↓↓
-    //             prefixCodeHits Prefix.Revert [ 0 ]
-    //         ]
-    //     | InputMatchingManyPrefixes.T ->
-    //         "t",
-    //         SelectableList.init [
-    //             //                    0123456789
-    //             //                       ↓
-    //             prefixCodeHits Prefix.Feat [ 3 ]
-    //
-    //             //                    0123456789
-    //             //                         ↓
-    //             prefixCodeHits Prefix.Refactor [ 5 ]
-    //
-    //             //                    0123456789
-    //             //                    ↓  ↓
-    //             prefixCodeHits Prefix.Test [ 0; 3 ]
-    //
-    //             //                    0123456789
-    //             //                         ↓
-    //             prefixCodeHits Prefix.Revert [ 5 ]
-    //         ]
-
     let (|InputWithManyMatchingPrefixes|) input =
-        let selectableList prefixes =
-            SelectableList.init (SelectableItems.Searched [ for index, prefix in List.indexed prefixes -> prefixCodeHits index prefix [ 0 ] ])
+        let selectableList inputText prefixes =
+            inputText, SelectableList.init (SelectableItems.Searched [ for index, prefix in List.indexed prefixes -> prefixCodeHits index prefix [ 0 ] (String.length inputText) ])
 
         match input with
         | InputMatchingManyPrefixes.Blank -> "", SelectableList.Prefixes.searchable SegmentsConfiguration.codeOnly Prefix.All
-        | InputMatchingManyPrefixes.F -> "f", selectableList [ Prefix.Feat; Prefix.Fix ]
-        | InputMatchingManyPrefixes.Re -> "re", selectableList [ Prefix.Refactor; Prefix.Revert ]
-        | InputMatchingManyPrefixes.T -> "t", selectableList [ Prefix.Test ]
+        | InputMatchingManyPrefixes.F -> selectableList "f" [ Prefix.Feat; Prefix.Fix ]
+        | InputMatchingManyPrefixes.Re -> selectableList "re" [ Prefix.Refactor; Prefix.Revert ]
+        | InputMatchingManyPrefixes.T -> selectableList "t" [ Prefix.Test ]
 
     [<RequireQualifiedAccess>]
     type MinInputToMatchExactlyOneEmojiAndOnePrefix =
