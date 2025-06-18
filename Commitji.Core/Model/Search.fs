@@ -2,12 +2,25 @@
 
 open Commitji.Core.Helpers
 
-type SearchSegment<'id, 'state> = {
+[<RequireQualifiedAccess>]
+type SearchOperation =
+    | StartsWith
+    | Contains
+
+/// <remarks>
+/// This union could be split into two for a more precise modelling,
+/// to know when the search happened, but it's too much complexity in the end.
+/// </remarks>
+[<RequireQualifiedAccess>]
+type SegmentState =
+    | NotSearchable
+    | Searchable of operation: SearchOperation
+    | Searched of hits: int list * length: int
+
+type SearchSegment<'id> = {
     Id: 'id
     Text: string
-
-    /// Either `SegmentInitState` or `SegmentStateAfterSearch`
-    State: 'state
+    State: SegmentState
 }
 
 [<RequireQualifiedAccess>]
@@ -18,35 +31,13 @@ module SearchSegment =
         State = state
     }
 
-    let changeState (newState: 'newState) (segment: SearchSegment<'id, 'state>) = {
-        Id = segment.Id
-        Text = segment.Text
-        State = newState
-    }
-
-[<RequireQualifiedAccess>]
-type SearchOperation =
-    | StartsWith
-    | Contains
-
-[<RequireQualifiedAccess>]
-type SegmentInitState =
-    | NotSearchable
-    | Searchable of operation: SearchOperation
-
-[<RequireQualifiedAccess>]
-type SegmentStateAfterSearch =
-    | NotSearchable
-    | Searched of hits: int list
-
-type SearchItem<'t, 'id, 'state> = {
+type SearchItem<'t, 'id> = {
     Item: 't
     Index: int
-    Segments: SearchSegment<'id, 'state> list
+    Segments: SearchSegment<'id> list
 }
 
-type SearchableList<'t, 'id> = SearchItem<'t, 'id, SegmentInitState> list
-type SearchedList<'t, 'id> = SearchItem<'t, 'id, SegmentStateAfterSearch> list
+type SearchableList<'t, 'id> = SearchItem<'t, 'id> list
 
 [<RequireQualifiedAccess>]
 type SearchInput =
@@ -67,8 +58,8 @@ type SearchInput =
         | Some searchInput -> searchInput
         | None -> invalidArg (nameof input) "Cannot be empty"
 
-type Search<'t, 'id>(initSegmentsByIndex: int -> 't -> SearchSegment<'id, SegmentInitState> list) =
-    let buildResult (searchItem: int -> 't -> SearchItem<'t, 'id, 'state> option) (items: 't list) =
+type Search<'t, 'id>(initSegmentsByIndex: int -> 't -> SearchSegment<'id> list) =
+    let buildResult (searchItem: int -> 't -> SearchItem<'t, 'id> option) (items: 't list) =
         // We call `searchItem` twice:
         // 1. First to filter out items that do not match the search.
         // 2. Second to the items with the right index.
@@ -79,29 +70,35 @@ type Search<'t, 'id>(initSegmentsByIndex: int -> 't -> SearchSegment<'id, Segmen
         |> Seq.toList
 
     let searchItem input comparison index item =
+        let length = String.length input
+
         let segments = [
             for segment in initSegmentsByIndex index item do
                 match segment.State with
-                | SegmentInitState.Searchable location -> // Searchable, update state with search results
+                | SegmentState.Searchable location -> // Searchable, update state with search results
                     let hits =
                         match location with
                         | SearchOperation.StartsWith when segment.Text.StartsWith(input, comparison) -> [ 0 ] // Match at the start
                         | SearchOperation.StartsWith -> [] // No match
                         | SearchOperation.Contains -> segment.Text |> String.allIndexesOf input comparison
 
-                    segment |> SearchSegment.changeState (SegmentStateAfterSearch.Searched hits)
+                    { segment with State = SegmentState.Searched(hits, length) }
 
-                | SegmentInitState.NotSearchable -> // ↩
-                    segment |> SearchSegment.changeState SegmentStateAfterSearch.NotSearchable
+                | SegmentState.NotSearchable -> // ↩
+                    { segment with State = SegmentState.NotSearchable }
+
+                | SegmentState.Searched _ -> failwith "invalid state before search"
         ]
 
         let hasMatchingSegments =
             segments
             |> List.exists (fun segment ->
                 match segment.State with
-                | SegmentStateAfterSearch.NotSearchable
-                | SegmentStateAfterSearch.Searched [] -> false
-                | SegmentStateAfterSearch.Searched _ -> true
+                | SegmentState.NotSearchable
+                | SegmentState.Searched(hits = [])
+                | SegmentState.Searched(length = 0) -> false
+                | SegmentState.Searched _ -> true
+                | SegmentState.Searchable _ -> failwith "invalid state after search"
             )
 
         match hasMatchingSegments with
@@ -123,6 +120,6 @@ type Search<'t, 'id>(initSegmentsByIndex: int -> 't -> SearchSegment<'id, Segmen
             }
         )
 
-    member this.Run(input: SearchInput, items: 't list, comparison) : SearchedList<'t, 'id> =
+    member this.Run(input: SearchInput, items: 't list, comparison) : SearchableList<'t, 'id> =
         items // ↩
         |> buildResult (searchItem input.Value comparison)

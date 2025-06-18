@@ -49,6 +49,7 @@ module private Render =
     module private StepName =
         let All = Set [ Prefix; Emoji; BreakingChange; Confirmation ]
 
+    // TODO: move logic to State and write tests
     let stepper (model: Model) =
         let existingSteps = [
             for step in List.rev model.CompletedSteps do
@@ -87,21 +88,28 @@ module private Render =
     let currentStep (model: Model) =
         let input = model.CurrentStep.Input
 
+        // TODO: remove duplication between steps -> create a common component?
         match model.CurrentStep.Step with
         | Step.Prefix matchingPrefixes ->
             instruction "Select a prefix for the commit message:"
 
-            SelectionPrompt.render (currentChoiceIndex = matchingPrefixes.Index, input = input) [|
-                for prefix in matchingPrefixes.Items do
-                    let props = prefix.Props
-                    SelectionPrompt.choice props.Code props.Hint
-            |]
+            match matchingPrefixes.Items with
+            | SelectableItems.Searchable items ->
+                SelectionPrompt.render (currentChoiceIndex = matchingPrefixes.Index) [|
+                    for prefix in items do
+                        prefix.Segments
+                |]
+            | SelectableItems.Searched items ->
+                SelectionPrompt.render (currentChoiceIndex = matchingPrefixes.Index) [|
+                    for prefix in items do
+                        prefix.Segments
+                |]
 
             AnsiConsole.WriteLine ""
 
             hintPanel [
                 if input.Length = 0 then
-                    $"""Start typing the prefix for auto-completion [grey](e.g. "fi" to select %s{Markup.selection "fix"})[/]"""
+                    $"""Start typing the prefix for auto-completion [grey](e.g. "fi" to select %s{Markup.selected "fix"})[/]"""
 
                 $"""Or press %s{Markup.kbd "Up"}/%s{Markup.kbd "Down"} then %s{Markup.kbd "Enter"} to select the highlighted prefix"""
 
@@ -116,17 +124,23 @@ module private Render =
         | Step.Emoji matchingEmojis ->
             instruction "Select an emoji for the commit message:"
 
-            SelectionPrompt.render (currentChoiceIndex = matchingEmojis.Index, input = input) [|
-                for emoji in matchingEmojis.Items do
-                    let props = emoji.Props
-                    SelectionPrompt.choice props.Code $"%s{props.Char} %s{props.Hint}"
-            |]
+            match matchingEmojis.Items with
+            | SelectableItems.Searchable items ->
+                SelectionPrompt.render (currentChoiceIndex = matchingEmojis.Index) [|
+                    for emoji in items do
+                        emoji.Segments
+                |]
+            | SelectableItems.Searched items ->
+                SelectionPrompt.render (currentChoiceIndex = matchingEmojis.Index) [|
+                    for emoji in items do
+                        emoji.Segments
+                |]
 
             AnsiConsole.WriteLine ""
 
             hintPanel [
                 if input.Length = 0 then
-                    $"""Start typing the emoji code for auto-completion [grey](e.g. "z" to select %s{Markup.selection "⚡"} [[zap]])[/]"""
+                    $"""Start typing the emoji code for auto-completion [grey](e.g. "z" to select %s{Markup.selected "⚡"} [[zap]])[/]"""
 
                 $"""Or press %s{Markup.kbd "Up"}/%s{Markup.kbd "Down"} then %s{Markup.kbd "Enter"} to select the highlighted emoji"""
 
@@ -141,16 +155,16 @@ module private Render =
         | Step.BreakingChange(breakingChange, invalidInput) ->
             instruction "Indicate if it's a breaking change:"
 
-            SelectionPrompt.render (currentChoiceIndex = (if breakingChange.Selected then 0 else 1), input = input) [|
-                SelectionPrompt.choice "Yes" "" // ↩
-                SelectionPrompt.choice "No" ""
+            SelectionPrompt.render (currentChoiceIndex = (if breakingChange.Selected then 0 else 1)) [|
+                SelectionPrompt.codeChoice "Yes" // ↩
+                SelectionPrompt.codeChoice "No"
             |]
 
             AnsiConsole.WriteLine ""
 
             hintPanel [
                 if input.Length = 0 then
-                    $"""Start typing the response for auto-completion [grey](e.g. "y" to select %s{Markup.selection "Yes"})[/]"""
+                    $"""Start typing the response for auto-completion [grey](e.g. "y" to select %s{Markup.selected "Yes"})[/]"""
 
                 $"""Or press %s{Markup.kbd "Up"}/%s{Markup.kbd "Down"} then %s{Markup.kbd "Enter"} to select the response"""
 
