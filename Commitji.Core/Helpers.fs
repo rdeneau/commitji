@@ -1,5 +1,11 @@
 ﻿module Commitji.Core.Helpers
 
+open System
+
+[<RequireQualifiedAccess>]
+module Map =
+    let valuesAsList (map: Map<'k, 'v>) = [ for KeyValue(_, value) in map -> value ]
+
 [<RequireQualifiedAccess>]
 module Reflection =
     open Microsoft.FSharp.Reflection
@@ -16,5 +22,21 @@ module Reflection =
 
 [<RequireQualifiedAccess>]
 module String =
+    let (|Int|_|) (s: string) =
+        match Int32.TryParse s with
+        | true, i -> Some i
+        | _ -> None
+
     let (|IsEmpty|IsNotEmpty|) (s: string) =
         if s.Length = 0 then IsEmpty else IsNotEmpty
+
+    let allIndexesOf (value: string) (comparison: StringComparison) (s: string) =
+        if String.IsNullOrEmpty(value) then
+            invalidArg (nameof value) "The search string must not be empty"
+
+        let rec loop acc start =
+            match s.IndexOf(value, start, comparison) with
+            | -1 -> List.rev acc
+            | idx  -> loop (idx :: acc) (idx + value.Length)
+
+        loop [] 0
