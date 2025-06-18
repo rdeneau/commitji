@@ -1,14 +1,18 @@
 ﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AForm_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003FUsers_003Frdeneau_003FAppData_003FRoaming_003FJetBrains_003FRider2025_002E1_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F7e319b3d1a4e4f72ad057f3f5c735d01d22928_003F27_003F9194eb11_003FForm_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AGridExtensions_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003FUsers_003Frdeneau_003FAppData_003FRoaming_003FJetBrains_003FRider2025_002E1_003Fresharper_002Dhost_003FSourcesCache_003Fd911d219372e35c2b4d3ce477c02d2ce0b798b43d27315c1699766f6efe26_003FGridExtensions_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AGridRow_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003FUsers_003Frdeneau_003FAppData_003FRoaming_003FJetBrains_003FRider2025_002E1_003Fresharper_002Dhost_003FSourcesCache_003Fd2c05bec86e4dfb073aa7dbc9d13d8179c5ad9d92b080516f5718c41dac1c_003FGridRow_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AGrid_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003FUsers_003Frdeneau_003FAppData_003FRoaming_003FJetBrains_003FRider2025_002E1_003Fresharper_002Dhost_003FSourcesCache_003Faa1659f07f3344a81c9562951abeb061b37288d787ad0b796963c0ee35c92d_003FGrid_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ALayoutProps_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003FUsers_003Frdeneau_003FAppData_003FRoaming_003FJetBrains_003FRider2025_002E1_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F266121508d0a5b08f31c9130f073d05224800_003Ff6_003F5e03ff9f_003FLayoutProps_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
-	
-	
-	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=8513f27a_002D3b26_002D49d2_002Da84a_002Dd888c1f8d955/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="MarkupShould" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=b095f774_002De6b1_002D45b3_002D8da6_002D7584691dc8a5/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="SelectionPromptShould" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
   &lt;TestAncestor&gt;&#xD;
-    &lt;TestId&gt;xUnit::03033F01-BE2A-4C60-8EEA-B5F543834C92::net9.0::Commitji.Tests.Cli.MarkupShould&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;xUnit::03033F01-BE2A-4C60-8EEA-B5F543834C92::net9.0::Commitji.Tests.Cli.SelectionPromptShould&lt;/TestId&gt;&#xD;
   &lt;/TestAncestor&gt;&#xD;
 &lt;/SessionState&gt;</s:String>
+	
+	
+	
+	
 	
 	
 	<s:Boolean x:Key="/Default/ResxEditorPersonal/CheckedGroups/=Commitji_002FUI_002FMain/@EntryIndexedValue">True</s:Boolean>

@@ -5,6 +5,7 @@ open Commitji.Cli.Components.SelectionPrompt
 open Commitji.Cli.Components.Stepper
 open Commitji.Core
 open Commitji.Core.Model
+open Commitji.Core.Model.Search
 open Spectre.Console
 
 module private Render =
@@ -95,15 +96,15 @@ module private Render =
 
             match matchingPrefixes.Items with
             | SelectableItems.Searchable items ->
-                SelectionPrompt.render (currentChoiceIndex = matchingPrefixes.Index) [|
+                SelectionPrompt.render (currentChoiceIndex = matchingPrefixes.Index) [
                     for prefix in items do
                         prefix.Segments
-                |]
+                ]
             | SelectableItems.Searched items ->
-                SelectionPrompt.render (currentChoiceIndex = matchingPrefixes.Index) [|
+                SelectionPrompt.render (currentChoiceIndex = matchingPrefixes.Index) [
                     for prefix in items do
                         prefix.Segments
-                |]
+                ]
 
             AnsiConsole.WriteLine ""
 
@@ -126,15 +127,15 @@ module private Render =
 
             match matchingEmojis.Items with
             | SelectableItems.Searchable items ->
-                SelectionPrompt.render (currentChoiceIndex = matchingEmojis.Index) [|
+                SelectionPrompt.render (currentChoiceIndex = matchingEmojis.Index) [
                     for emoji in items do
                         emoji.Segments
-                |]
+                ]
             | SelectableItems.Searched items ->
-                SelectionPrompt.render (currentChoiceIndex = matchingEmojis.Index) [|
+                SelectionPrompt.render (currentChoiceIndex = matchingEmojis.Index) [
                     for emoji in items do
                         emoji.Segments
-                |]
+                ]
 
             AnsiConsole.WriteLine ""
 
@@ -155,10 +156,14 @@ module private Render =
         | Step.BreakingChange(breakingChange, invalidInput) ->
             instruction "Indicate if it's a breaking change:"
 
-            SelectionPrompt.render (currentChoiceIndex = (if breakingChange.Selected then 0 else 1)) [|
-                SelectionPrompt.codeChoice "Yes" // ↩
-                SelectionPrompt.codeChoice "No"
-            |]
+            let codeChoice code = [ // ↩
+                    SearchSegment.create SegmentId.Code code (SegmentState.Searchable SearchOperation.StartsWith)
+                ]
+
+            SelectionPrompt.render (currentChoiceIndex = (if breakingChange.Selected then 0 else 1)) [
+                codeChoice "Yes" // ↩
+                codeChoice "No"
+            ]
 
             AnsiConsole.WriteLine ""
 

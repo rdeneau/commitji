@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <Compile Include="Cli\MarkupShould.fs" />
+    <Compile Include="Cli\SelectionPromptShould.fs" />
     <Compile Include="Core\SearchShould.fs" />
     <Compile Include="Core\StateShould.fs" />
     <Compile Include="Program.fs" />
