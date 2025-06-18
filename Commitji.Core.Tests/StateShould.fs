@@ -1,6 +1,7 @@
-﻿module CoreProgramShould
+﻿module Commitji.Core.Tests.StateShould
 
 open Commitji.Core.Model
+open Commitji.Core.Model.Search
 open Commitji.Core.State
 open Commitji.Core.Types
 open FsCheck
@@ -8,17 +9,25 @@ open FsCheck.Xunit
 open Swensen.Unquote
 open global.Xunit
 
+[<RequireQualifiedAccess>]
+module private SegmentsConfiguration =
+    let codeOnly = {
+        SegmentsConfiguration.States = // ↩
+            Map [ SegmentId.Code, SegmentInitState.Searchable SearchOperation.StartsWith ]
+    }
+
 [<AutoOpen>]
 module Helpers =
     let initial = {
         CurrentStep = {
-            Step = Step.Prefix Prefix.All.AsSelectable
+            Step = Step.Prefix(SelectableList.Prefixes.searchable SegmentsConfiguration.codeOnly Prefix.All)
             Input = ""
             Confirmed = false
         }
         CompletedSteps = []
-        SelectablePrefixes = Prefix.All
-        SelectableEmojis = Emoji.All
+        AvailablePrefixes = Prefix.All
+        AvailableEmojis = Emoji.All
+        SegmentsConfiguration = SegmentsConfiguration.codeOnly
         PreviousFullCompletion = None
     }
 
@@ -44,8 +53,8 @@ module Helpers =
                     | true -> CompleteStep step
                     | false -> IncompleteStep step
                 | CompletedSteps _ -> CompletedSteps actual.CompletedSteps
-                | SelectablePrefixes _ -> SelectablePrefixes actual.SelectablePrefixes
-                | SelectableEmojis _ -> SelectableEmojis actual.SelectableEmojis
+                | SelectablePrefixes _ -> SelectablePrefixes actual.AvailablePrefixes
+                | SelectableEmojis _ -> SelectableEmojis actual.AvailableEmojis
                 | PreviousFullCompletion _ -> PreviousFullCompletion actual.PreviousFullCompletion
         ]
 
@@ -65,27 +74,131 @@ module Helpers =
     let (|InputWithManyMatchingEmojis|) =
         function
         | InputMatchingManyEmojis.Arrow -> "arrow", [ Emoji.ArrowDown; Emoji.ArrowUp; Emoji.TwistedRightwardsArrows ]
-        | InputMatchingManyEmojis.Bu -> "bu", [ Emoji.Ambulance; Emoji.Bug; Emoji.BuildingConstruction; Emoji.Bulb; Emoji.BustsInSilhouette ]
-        | InputMatchingManyEmojis.Co -> "co", [ Emoji.BuildingConstruction; Emoji.Coffin; Emoji.Construction; Emoji.ConstructionWorker; Emoji.PassportControl; Emoji.Stethoscope ]
+        | InputMatchingManyEmojis.Bu ->
+            "bu",
+            [
+                Emoji.Ambulance
+                Emoji.Bug
+                Emoji.BuildingConstruction
+                Emoji.Bulb
+                Emoji.BustsInSilhouette
+            ]
+        | InputMatchingManyEmojis.Co ->
+            "co",
+            [
+                Emoji.BuildingConstruction
+                Emoji.Coffin
+                Emoji.Construction
+                Emoji.ConstructionWorker
+                Emoji.PassportControl
+                Emoji.Stethoscope
+            ]
         | InputMatchingManyEmojis.Cons -> "cons", [ Emoji.BuildingConstruction; Emoji.Construction; Emoji.ConstructionWorker ]
         | InputMatchingManyEmojis.Heavy -> "heavy", [ Emoji.HeavyMinusSign; Emoji.HeavyPlusSign ]
         | InputMatchingManyEmojis.Mon -> "mon", [ Emoji.MoneyWithWings; Emoji.MonocleFace ]
-        | InputMatchingManyEmojis.Te -> "te", [ Emoji.BustsInSilhouette; Emoji.Mute; Emoji.Stethoscope; Emoji.Technologist; Emoji.TestTube; Emoji.TwistedRightwardsArrows; Emoji.Wastebasket; Emoji.WhiteCheckMark ]
+        | InputMatchingManyEmojis.Te ->
+            "te",
+            [
+                Emoji.BustsInSilhouette
+                Emoji.Mute
+                Emoji.Stethoscope
+                Emoji.Technologist
+                Emoji.TestTube
+                Emoji.TwistedRightwardsArrows
+                Emoji.Wastebasket
+                Emoji.WhiteCheckMark
+            ]
         | InputMatchingManyEmojis.Z -> "z", [ Emoji.Dizzy; Emoji.Zap ]
 
     [<RequireQualifiedAccess>]
     type InputMatchingManyPrefixes =
         | Blank
         | F
-        | R
         | Re
+        | T
 
-    let (|InputWithManyMatchingPrefixes|) =
-        function
-        | InputMatchingManyPrefixes.Blank -> "", Prefix.All
-        | InputMatchingManyPrefixes.F -> "f", [ Prefix.Feat; Prefix.Fix ]
-        | InputMatchingManyPrefixes.R -> "r", [ Prefix.Refactor; Prefix.Revert ]
-        | InputMatchingManyPrefixes.Re -> "re", [ Prefix.Refactor; Prefix.Revert ]
+    let private codeHits getCode index item hits = {
+        Item = item
+        Index = index
+        Segments = [
+            {
+                Id = SegmentId.Code
+                Text = getCode item
+                State = SegmentStateAfterSearch.Searched hits
+            }
+        ]
+    }
+
+    let private prefixCodeHits index item hits =
+        codeHits (fun (x: Prefix) -> x.Code) index item hits
+
+    // TODO: test search prefix anywhere (not just at the start)
+    // let (|InputWithManyMatchingPrefixes|) =
+    //     function
+    //     | InputMatchingManyPrefixes.Blank -> "", SelectableList.prefixes SegmentsConfiguration.codeOnly Prefix.All
+    //     | InputMatchingManyPrefixes.F ->
+    //         "f",
+    //         SelectableList.init [
+    //             //                    0123456789
+    //             //                    ↓
+    //             prefixCodeHits Prefix.Feat [ 0 ]
+    //
+    //             //                    0123456789
+    //             //                    ↓
+    //             prefixCodeHits Prefix.Fix [ 0 ]
+    //
+    //             //                    0123456789
+    //             //                      ↓
+    //             prefixCodeHits Prefix.Refactor [ 2 ]
+    //
+    //             //                    0123456789
+    //             //                       ↓
+    //             prefixCodeHits Prefix.Perf [ 3 ]
+    //         ]
+    //     | InputMatchingManyPrefixes.Re ->
+    //         "re",
+    //         SelectableList.init [
+    //             //                    0123456789
+    //             //                    ↓↓
+    //             prefixCodeHits Prefix.Refactor [ 0 ]
+    //
+    //             //                    0123456789
+    //             //                       ↓↓
+    //             prefixCodeHits Prefix.Chore [ 3 ]
+    //
+    //             //                    0123456789
+    //             //                    ↓↓
+    //             prefixCodeHits Prefix.Revert [ 0 ]
+    //         ]
+    //     | InputMatchingManyPrefixes.T ->
+    //         "t",
+    //         SelectableList.init [
+    //             //                    0123456789
+    //             //                       ↓
+    //             prefixCodeHits Prefix.Feat [ 3 ]
+    //
+    //             //                    0123456789
+    //             //                         ↓
+    //             prefixCodeHits Prefix.Refactor [ 5 ]
+    //
+    //             //                    0123456789
+    //             //                    ↓  ↓
+    //             prefixCodeHits Prefix.Test [ 0; 3 ]
+    //
+    //             //                    0123456789
+    //             //                         ↓
+    //             prefixCodeHits Prefix.Revert [ 5 ]
+    //         ]
+
+    let (|InputWithManyMatchingPrefixes|) input =
+        let selectableList prefixes =
+            SelectableList.init (SelectableItems.Searched [ for index, prefix in List.indexed prefixes -> prefixCodeHits index prefix [ 0 ] ])
+
+        match input with
+        | InputMatchingManyPrefixes.Blank -> "", SelectableList.Prefixes.searchable SegmentsConfiguration.codeOnly Prefix.All
+        | InputMatchingManyPrefixes.F -> "f", selectableList [ Prefix.Feat; Prefix.Fix ]
+        | InputMatchingManyPrefixes.Re -> "re", selectableList [ Prefix.Refactor; Prefix.Revert ]
+        | InputMatchingManyPrefixes.T -> "t", selectableList [ Prefix.Test ]
 
     [<RequireQualifiedAccess>]
     type MinInputToMatchExactlyOneEmojiAndOnePrefix =
@@ -342,7 +455,7 @@ module Helpers =
 module ``0_ init`` =
     [<Fact>]
     let ``start at the prefix step with all possible prefixes and emojis`` () = // ↩
-        init () =! initial
+        (initWith initial.SegmentsConfiguration) =! initial
 
 module ``1_ select prefix first`` =
     [<Property>]
@@ -353,7 +466,7 @@ module ``1_ select prefix first`` =
 
         actual
         |> shouldHave [
-            CurrentStep(Step.Prefix expectedPrefixes.AsSelectable) // ↩
+            CurrentStep(Step.Prefix expectedPrefixes) // ↩
             CurrentInput input
         ]
 
@@ -385,7 +498,7 @@ module ``2_ select emoji after prefix`` =
 
         actual
         |> shouldHave [
-            CurrentStep(Step.Emoji expectedEmojis.AsSelectable) // ↩
+            CurrentStep(Step.Emoji(SelectableList.Emojis.searchable SegmentsConfiguration.codeOnly expectedEmojis)) // ↩
             CurrentInput ""
         ]
 
@@ -425,7 +538,7 @@ module ``3_ select emoji first`` =
 
         actual
         |> shouldHave [
-            CurrentStep(Step.Emoji Emoji.All.AsSelectable) // ↩
+            CurrentStep(Step.Emoji(SelectableList.Emojis.searchable SegmentsConfiguration.codeOnly Emoji.All)) // ↩
             CurrentInput ""
         ]
 
@@ -438,7 +551,7 @@ module ``3_ select emoji first`` =
 
         actual
         |> shouldHave [
-            CurrentStep(Step.Emoji expectedEmojis.AsSelectable) // ↩
+            CurrentStep(Step.Emoji(SelectableList.Emojis.searchable SegmentsConfiguration.codeOnly expectedEmojis)) // ↩
             CurrentInput input
         ]
 
@@ -473,7 +586,7 @@ module ``4_ select prefix after emoji`` =
 
         actual
         |> shouldHave [
-            CurrentStep(Step.Prefix expectedPrefixes.AsSelectable) // ↩
+            CurrentStep(Step.Prefix(SelectableList.Prefixes.searchable SegmentsConfiguration.codeOnly expectedPrefixes)) // ↩
             CurrentInput ""
         ]
 

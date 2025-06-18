@@ -1,9 +1,10 @@
 ﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AForm_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003FUsers_003Frdeneau_003FAppData_003FRoaming_003FJetBrains_003FRider2025_002E1_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F7e319b3d1a4e4f72ad057f3f5c735d01d22928_003F27_003F9194eb11_003FForm_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AGridExtensions_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003FUsers_003Frdeneau_003FAppData_003FRoaming_003FJetBrains_003FRider2025_002E1_003Fresharper_002Dhost_003FSourcesCache_003Fd911d219372e35c2b4d3ce477c02d2ce0b798b43d27315c1699766f6efe26_003FGridExtensions_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ALayoutProps_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003FUsers_003Frdeneau_003FAppData_003FRoaming_003FJetBrains_003FRider2025_002E1_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F266121508d0a5b08f31c9130f073d05224800_003Ff6_003F5e03ff9f_003FLayoutProps_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=7927a91d_002Dd3fe_002D4891_002D91d8_002D5205a058d487/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="CoreProgramShould" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
   &lt;TestAncestor&gt;&#xD;
-    &lt;TestId&gt;xUnit::03033F01-BE2A-4C60-8EEA-B5F543834C92::net9.0::CoreProgramShould&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;xUnit::03033F01-BE2A-4C60-8EEA-B5F543834C92::net9.0::Commitji.Core.Tests.SearchShould&lt;/TestId&gt;&#xD;
   &lt;/TestAncestor&gt;&#xD;
 &lt;/SessionState&gt;</s:String>
 	
