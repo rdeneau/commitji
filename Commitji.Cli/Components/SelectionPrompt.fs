@@ -51,8 +51,7 @@ type SelectionPrompt(?halfPageSize) =
 
     member _.compute(currentChoiceIndex) =
         fun (choices: Choice list) ->
-            let nbChoices =
-                choices.Length
+            let nbChoices = choices.Length
 
             let segmentIds =
                 match choices with
@@ -106,20 +105,21 @@ type SelectionPrompt(?halfPageSize) =
         fun (choices: Choice list) ->
             let model = defaultInstance.compute currentChoiceIndex choices
 
-            let grid =
-                (Grid(), model.segmentIds)
-                ||> List.fold (fun grid segmentType ->
-                    let column = GridColumn().NoWrap()
+            match model.rows with
+            | [] -> ()
+            | _ ->
+                let grid =
+                    (Grid(), model.segmentIds)
+                    ||> List.fold (fun grid segmentType ->
+                        let column = GridColumn().NoWrap()
 
-                    match segmentType with
-                    | SegmentId.Number -> column.Alignment <- Justify.Right
-                    | _ -> ()
+                        match segmentType with
+                        | SegmentId.Number -> column.Alignment <- Justify.Right
+                        | _ -> ()
 
-                    grid.AddColumn(column)
-                )
+                        grid.AddColumn(column)
+                    )
 
-            let grid =
-                (grid, model.rows)
-                ||> List.fold _.AddRow
+                let grid = (grid, model.rows) ||> List.fold _.AddRow
 
-            AnsiConsole.Write(grid)
+                AnsiConsole.Write(grid)
