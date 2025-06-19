@@ -1,5 +1,6 @@
 ﻿module Commitji.Cli.Components.Stepper
 
+open Commitji.Cli
 open Spectre.Console
 
 type StepStatus =
@@ -9,21 +10,32 @@ type StepStatus =
 
 type StepProps = { Name: string; Status: StepStatus }
 
+[<Literal>]
+let private Separator = "  ›  "
+
 module private Markup =
-    let step step =
+    let step index step =
+        let label = $"(%i{index + 1}) %s{step.Name}"
+
         match step.Status with
-        | Completed value -> $"[green1]✔[/] %s{step.Name}: [green1]%s{value}[/]"
-        | Current -> $"[cyan]» %s{step.Name}[/]"
-        | Pending -> $"[grey]• %s{step.Name}[/]"
+        | Completed value -> $"%s{Markup.selectedDim label}: %s{value |> Markup.selected |> Markup.strong}"
+        | Current -> label |> Markup.current |> Markup.strong
+        | Pending -> label |> Markup.inactive
 
 type Stepper =
-    static member step(name, status) = { Name = name; Status = status }
+    static member step(name, status) = // ↩
+        { Name = name; Status = status }
 
     static member render(steps) =
-        AnsiConsole.Write(
-            Columns [|
-                "[bold italic]Steps:[/]"
-                for step in steps do
-                    Markup.step step
-            |]
-        )
+        [
+            "Steps:  " |> Markup.strong |> Markup.em
+
+            for index, step in Seq.indexed steps do
+                match index with
+                | 0 -> ()
+                | _ -> Markup.light Separator
+
+                Markup.step index step
+        ]
+        |> String.concat ""
+        |> AnsiConsole.MarkupLine
