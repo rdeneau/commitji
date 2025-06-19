@@ -48,15 +48,28 @@ type SearchInput =
         match this with
         | NotEmpty input -> input
 
+    member this.Length = this.Value.Length
+
+    /// <summary>
+    /// Create a new <see cref="SearchInput"/> from the given <paramref name="input"/>.
+    /// </summary>
+    /// <param name="input">The search input value</param>
+    /// <returns>An <c>Option</c> containing the created <see cref="SearchInput"/>
+    ///          or <c>None</c> if the given <paramref name="input"/> is empty.</returns>
     static member tryCreate input =
         match input with
         | String.IsEmpty -> None
         | String.IsNotEmpty -> Some(SearchInput.NotEmpty input)
 
-    static member create input =
-        match SearchInput.tryCreate input with
+    /// <summary>
+    /// Create a new <see cref="SearchInput"/> from the given <paramref name="notEmptyInput"/>.
+    /// </summary>
+    /// <param name="notEmptyInput">The search input value, not empty otherwise 💥</param>
+    /// <exception cref="ArgumentException">When the given <paramref name="notEmptyInput"/> is null or empty</exception>
+    static member create notEmptyInput =
+        match SearchInput.tryCreate notEmptyInput with
         | Some searchInput -> searchInput
-        | None -> invalidArg (nameof input) "Cannot be empty"
+        | None -> invalidArg (nameof notEmptyInput) "Cannot be empty"
 
 type Search<'t, 'id>(initSegmentsByIndex: int -> 't -> SearchSegment<'id> list) =
     let buildResult (searchItem: int -> 't -> SearchItem<'t, 'id> option) (items: 't list) =
