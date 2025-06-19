@@ -87,7 +87,7 @@ module private Render =
 
         AnsiConsole.WriteLine ""
 
-    let currentStep (model: Model) =
+    let currentStep canUndo (model: Model) =
         let input = model.CurrentStep.Input
 
         // TODO: remove duplication between steps -> create a common component?
@@ -125,8 +125,10 @@ module private Render =
 
                 match model.CompletedSteps, input with
                 | [], String.IsEmpty -> $"""Press %s{Markup.kbd ":"} to start by selecting an emoji"""
-                | _, String.IsEmpty -> $"""Press %s{Markup.kbd "Backspace"} to restart the previous step"""
                 | _ -> ()
+
+                if canUndo then
+                    $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "Z"} or %s{Markup.kbd "Backspace"} to undo the last action"""
 
                 $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "C"} to exit"""
             ]
@@ -162,10 +164,8 @@ module private Render =
 
                 $"""Press %s{Markup.kbd "Up"}/%s{Markup.kbd "Down"} then %s{Markup.kbd "Enter"} to select the highlighted emoji"""
 
-                match model.CompletedSteps, input with
-                | [], String.IsEmpty -> $"""Press %s{Markup.kbd "Backspace"} to start selecting a prefix back"""
-                | _, String.IsEmpty -> $"""Press %s{Markup.kbd "Backspace"} to restart the previous step"""
-                | _ -> ()
+                if canUndo then
+                    $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "Z"} or %s{Markup.kbd "Backspace"} to undo the last action"""
 
                 $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "C"} to exit"""
             ]
@@ -195,6 +195,9 @@ module private Render =
                 | _ when input.Length = 0 -> $"""Press %s{Markup.kbd "Backspace"} to restart the previous step"""
                 | _ -> ()
 
+                if canUndo then
+                    $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "Z"} or %s{Markup.kbd "Backspace"} to undo the last action"""
+
                 $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "C"} to exit"""
             ]
 
@@ -221,7 +224,7 @@ module private Render =
         AnsiConsole.WriteLine ""
         AnsiConsole.Write input
 
-let render model =
+let render canUndo model =
     AnsiConsole.Clear()
 
     let title = Rule("[bold orange1]Commit[/][yellow italic]ji[/]").Centered()
@@ -229,4 +232,4 @@ let render model =
     AnsiConsole.WriteLine ""
 
     Render.stepper model
-    Render.currentStep model
+    Render.currentStep canUndo model

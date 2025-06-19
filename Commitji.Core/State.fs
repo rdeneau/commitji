@@ -1,7 +1,6 @@
 ﻿module Commitji.Core.State
 
 open System
-open Commitji.Core.Helpers
 open Commitji.Core.Model
 open Commitji.Core.Model.Search
 
@@ -199,36 +198,6 @@ module private StartStep =
         | Step.BreakingChange _
         | Step.Confirmation _ -> model
 
-/// Restart the previous step, if any.
-[<TailCall>]
-let rec private rollback (model: Model) =
-    match model.CompletedSteps, model.CurrentStep.Step with
-    | [], Step.Emoji _ ->
-        // Switch back to prefix selection
-        // Both steps (PRefix and Emoji) are started in order to make all emojis and prefixes available again
-        model // ↩
-        |> startEmojiStep Emoji.All
-        |> startPrefixStep Prefix.All
-    | [], _ -> model // No previous step to roll back to -> stay in the current step.
-    | previousStep :: completedSteps, _ ->
-        let restartAt (step: Step) = {
-            model with // ↩
-                CurrentStep = CurrentStep.start step
-                CompletedSteps = completedSteps
-        }
-
-        match previousStep with
-        | CompletedStep.Prefix _ -> restartAt (Step.Prefix(SelectableList.Prefixes.searchable model.SegmentsConfiguration model.AvailablePrefixes))
-        | CompletedStep.Emoji _ -> restartAt (Step.Emoji(SelectableList.Emojis.searchable model.SegmentsConfiguration model.AvailableEmojis))
-        | CompletedStep.BreakingChange breakingChange ->
-            let model = restartAt (Step.BreakingChange(breakingChange, invalidInput = None))
-
-            if breakingChange.Disabled then
-                // The breaking change step is not editable, so we roll back one more time
-                rollback model
-            else
-                model
-
 [<AutoOpen>]
 module private StepCompletion =
     let private addCompletedStep completedStep (model: Model) = {
@@ -323,8 +292,6 @@ let rec update (msg: Msg) (model: Model) =
         { model with Model.CurrentStep.Confirmed = (msg = Enter) }
 
     match msg, model.CurrentStep with
-    | Backspace, { Input = String.IsEmpty } -> model |> rollback // TODO RDE: fix emojis list not reset (scenario: select a prefix, backspace, ':')
-    | Backspace, { Input = input } -> { model with Model.CurrentStep.Input = input[.. input.Length - 2] } |> performSearch
     | InputChanged input, _ -> { model with Model.CurrentStep.Input = input } |> performSearch |> tryCompleteManySteps ExactMatch
     | Enter, _ -> model |> tryCompleteManySteps FirstMatchAtIndex
     | Down, { Step = Step.Prefix prefixes } -> { model with Model.CurrentStep.Step = prefixes |> SelectableList.selectNext |> Step.Prefix }
