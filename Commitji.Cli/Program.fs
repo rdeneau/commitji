@@ -32,5 +32,6 @@ let private run () =
 
 [<EntryPoint>]
 let main _ =
+    Console.OutputEncoding <- System.Text.Encoding.UTF8 // 👈 To ensure proper display of emojis while running the executable
     run ()
     0
