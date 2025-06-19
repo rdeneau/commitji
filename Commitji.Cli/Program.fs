@@ -44,17 +44,17 @@ type Elmish(init, update, view) =
             match Option.ofNullable keyInfo with
             | None -> shouldEnd <- true
             | Some keyInfo ->
-                match keyInfo.Key, keyInfo.KeyChar, keyInfo.Modifiers with
+                match keyInfo.Key, keyInfo.Modifiers, keyInfo.KeyChar with
                 | ConsoleKey.Backspace, _, _
-                | _, 'z', ConsoleModifiers.Control -> undo ()
+                | _, ConsoleModifiers.Control, 'z' -> undo ()
                 | ConsoleKey.DownArrow, _, _ -> handle Msg.Down
                 | ConsoleKey.UpArrow, _, _ -> handle Msg.Up
                 | ConsoleKey.Enter, _, _ -> handle Msg.Enter
                 | ConsoleKey.Escape, _, _ -> handle (Msg.ToggleFullTextSearch false)
-                | _, 'f', (ConsoleModifiers.Alt | ConsoleModifiers.Control) -> handle (Msg.ToggleFullTextSearch true) // 💡 Use [Alt]+[F] when [Ctrl]+[F] is caught by the terminal
-                | _, 'c', ConsoleModifiers.Control -> shouldEnd <- true
-                | _, Char.MinValue, _ -> () // Ignore other control keys
-                | _, c, (ConsoleModifiers.None | ConsoleModifiers.Shift) -> handle (Msg.InputChanged $"%s{model.CurrentStep.Input}%c{c}")
+                | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'f' -> handle (Msg.ToggleFullTextSearch true) // 💡 We can use [Alt]+[F] when [Ctrl]+[F] is caught by the terminal
+                | _, ConsoleModifiers.Control, 'c' -> shouldEnd <- true
+                | _, _, Char.MinValue -> () // Ignore other control keys
+                | _, (ConsoleModifiers.None | ConsoleModifiers.Shift), c -> handle (Msg.InputChanged $"%s{model.CurrentStep.Input}%c{c}")
                 | _ -> ()
 
 [<EntryPoint>]
