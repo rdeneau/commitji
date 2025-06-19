@@ -91,7 +91,6 @@ type Model = {
 }
 
 type Msg =
-    | Backspace
     | Enter
     | Down
     | Up

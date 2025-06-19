@@ -8,6 +8,13 @@ type Elmish(init, update, view) =
     let mutable model = init ()
     let mutable history = []
 
+    let canUndo () =
+        match history with
+        | [] -> false
+        | _ -> true
+
+    let view model = view (canUndo ()) model
+
     let handle msg = // ↩
         let newModel = update msg model
 
@@ -16,13 +23,12 @@ type Elmish(init, update, view) =
             model <- newModel
             view model
 
-    // TODO: plug rollback to Backspace key and remove the Msg.Backspace from the State module
-    let rollback () =
+    let undo () =
         match history with
         | [] -> ()
-        | lastModel :: rest ->
-            model <- lastModel
+        | previous :: rest ->
             history <- rest
+            model <- previous
             view model
 
     member _.Run() =
@@ -39,7 +45,8 @@ type Elmish(init, update, view) =
             | None -> shouldEnd <- true
             | Some keyInfo ->
                 match keyInfo.Key, keyInfo.KeyChar, keyInfo.Modifiers with
-                | ConsoleKey.Backspace, _, _ -> handle Msg.Backspace
+                | ConsoleKey.Backspace, _, _
+                | _, 'z', ConsoleModifiers.Control -> undo ()
                 | ConsoleKey.DownArrow, _, _ -> handle Msg.Down
                 | ConsoleKey.UpArrow, _, _ -> handle Msg.Up
                 | ConsoleKey.Enter, _, _ -> handle Msg.Enter
