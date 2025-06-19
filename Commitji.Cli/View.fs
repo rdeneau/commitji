@@ -4,6 +4,7 @@ open System
 open Commitji.Cli.Components.SelectionPrompt
 open Commitji.Cli.Components.Stepper
 open Commitji.Core
+open Commitji.Core.Helpers
 open Commitji.Core.Model
 open Commitji.Core.Model.Search
 open Spectre.Console
@@ -109,14 +110,22 @@ module private Render =
             AnsiConsole.WriteLine ""
 
             hintPanel [
-                if input.Length = 0 then
-                    $"""Start typing the prefix for auto-completion [grey](e.g. "fi" to select %s{Markup.selected "fix"})[/]"""
+                match model.SearchMode with
+                | SearchMode.Quick ->
+                    $"""[italic]Quick search:[/] Start typing the prefix code for auto-completion [grey](e.g. "fi" to select %s{Markup.selected "fix"})[/]"""
+                    $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "F"} (or %s{Markup.kbd "Alt"}+%s{Markup.kbd "F"}) to activate the full-text search"""
+                | SearchMode.FullText ->
+                    $"""[italic]Full-text search:[/] Start typing a part of the prefix code or hint to search [grey](e.g. "bug" to select %s{Markup.selected "fix"})[/]"""
+                    $"""Press %s{Markup.kbd "Escape"} to return to the quick search"""
+                | SearchMode.Custom _ -> ()
 
-                $"""Or press %s{Markup.kbd "Up"}/%s{Markup.kbd "Down"} then %s{Markup.kbd "Enter"} to select the highlighted prefix"""
+                "Or type the prefix number"
 
-                match model.CompletedSteps with
-                | [] -> $"""Press %s{Markup.kbd ":"} to start by selecting an emoji"""
-                | _ when input.Length = 0 -> $"""Press %s{Markup.kbd "Backspace"} to restart the previous step"""
+                $"""Press %s{Markup.kbd "Up"}/%s{Markup.kbd "Down"} then %s{Markup.kbd "Enter"} to select the highlighted prefix"""
+
+                match model.CompletedSteps, input with
+                | [], String.IsEmpty -> $"""Press %s{Markup.kbd ":"} to start by selecting an emoji"""
+                | _, String.IsEmpty -> $"""Press %s{Markup.kbd "Backspace"} to restart the previous step"""
                 | _ -> ()
 
                 $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "C"} to exit"""
@@ -140,14 +149,22 @@ module private Render =
             AnsiConsole.WriteLine ""
 
             hintPanel [
-                if input.Length = 0 then
-                    $"""Start typing the emoji code for auto-completion [grey](e.g. "z" to select %s{Markup.selected "⚡"} [[zap]])[/]"""
+                match model.SearchMode with
+                | SearchMode.Quick ->
+                    $"""[italic]Quick search:[/] Start typing the emoji code for auto-completion [grey](e.g. "z" to select %s{Markup.selected "⚡"} [[zap]])[/]"""
+                    $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "F"} (or %s{Markup.kbd "Alt"}+%s{Markup.kbd "F"}) to activate the full-text search"""
+                | SearchMode.FullText ->
+                    $"""[italic]Full-text search:[/] Start typing a part of the emoji code or hint to search [grey](e.g. "bug" to select %s{Markup.selected "fix"})[/]"""
+                    $"""Press %s{Markup.kbd "Escape"} to return to the quick search"""
+                | SearchMode.Custom _ -> ()
 
-                $"""Or press %s{Markup.kbd "Up"}/%s{Markup.kbd "Down"} then %s{Markup.kbd "Enter"} to select the highlighted emoji"""
+                "Or type the emoji number"
 
-                match model.CompletedSteps with
-                | [] -> $"""Press %s{Markup.kbd ":"} to start by selecting a prefix"""
-                | _ when input.Length = 0 -> $"""Press %s{Markup.kbd "Backspace"} to restart the previous step"""
+                $"""Press %s{Markup.kbd "Up"}/%s{Markup.kbd "Down"} then %s{Markup.kbd "Enter"} to select the highlighted emoji"""
+
+                match model.CompletedSteps, input with
+                | [], String.IsEmpty -> $"""Press %s{Markup.kbd "Backspace"} to start selecting a prefix back"""
+                | _, String.IsEmpty -> $"""Press %s{Markup.kbd "Backspace"} to restart the previous step"""
                 | _ -> ()
 
                 $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "C"} to exit"""
@@ -204,7 +221,7 @@ module private Render =
         AnsiConsole.WriteLine ""
         AnsiConsole.Write input
 
-let view model =
+let render model =
     AnsiConsole.Clear()
 
     let title = Rule("[bold orange1]Commit[/][yellow italic]ji[/]").Centered()
