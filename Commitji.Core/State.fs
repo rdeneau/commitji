@@ -59,6 +59,12 @@ module private SegmentsConfiguration =
             SegmentId.Hint, SegmentState.Searchable SearchOperation.Contains
         ]
 
+    let ofSearchMode searchMode =
+        match searchMode with
+        | SearchMode.Quick -> quickSearch
+        | SearchMode.FullText -> fullTextSearch
+        | SearchMode.Custom(_, segmentsConfig) -> segmentsConfig
+
 [<RequireQualifiedAccess>]
 module private Segments =
     let private numberCodeHint (segmentsConfig: SegmentsConfiguration) index code hint =
@@ -83,11 +89,11 @@ module private Segments =
 [<AutoOpen>]
 module Extensions =
     type SegmentsConfiguration with
-        member this.AsPrefixesSearch =
-            Search(Segments.prefix this)
+        member this.AsPrefixesSearch = Search(Segments.prefix this)
+        member this.AsEmojisSearch = Search(Segments.emoji this)
 
-        member this.AsEmojisSearch =
-            Search(Segments.emoji this)
+    type Model with
+        member this.SegmentsConfiguration = SegmentsConfiguration.ofSearchMode this.SearchMode
 
 [<RequireQualifiedAccess>]
 module SelectableList =
@@ -129,17 +135,19 @@ module SelectableList =
                 | i -> i - 1
     }
 
-let initWith segmentsConfig = {
-    CurrentStep = CurrentStep.start (Step.Prefix(SelectableList.Prefixes.searchable segmentsConfig Prefix.All))
-    CompletedSteps = []
-    AvailablePrefixes = Prefix.All
-    AvailableEmojis = Emoji.All
-    SegmentsConfiguration = segmentsConfig
-    PreviousFullCompletion = None
-}
+let initWith searchMode =
+    let segmentsConfig = SegmentsConfiguration.ofSearchMode searchMode
 
-let init () =
-    initWith SegmentsConfiguration.quickSearch
+    {
+        CurrentStep = CurrentStep.start (Step.Prefix(SelectableList.Prefixes.searchable segmentsConfig Prefix.All))
+        CompletedSteps = []
+        AvailablePrefixes = Prefix.All
+        AvailableEmojis = Emoji.All
+        SearchMode = searchMode
+        PreviousFullCompletion = None
+    }
+
+let init () = initWith SearchMode.Quick
 
 let private performSearch (model: Model) =
     let step =
@@ -160,12 +168,47 @@ let private performSearch (model: Model) =
 
     { model with Model.CurrentStep.Step = step }
 
+[<AutoOpen>]
+module private StartStep =
+    let startEmojiStep selectableEmojis (model: Model) = {
+        model with // ↩
+            AvailableEmojis = selectableEmojis
+            CurrentStep = CurrentStep.start (Step.Emoji(SelectableList.Emojis.searchable model.SegmentsConfiguration selectableEmojis))
+    }
+
+    let startPrefixStep selectablePrefixes (model: Model) = {
+        model with // ↩
+            AvailablePrefixes = selectablePrefixes
+            CurrentStep = CurrentStep.start (Step.Prefix(SelectableList.Prefixes.searchable model.SegmentsConfiguration selectablePrefixes))
+    }
+
+    let startBreakingChangeStep selectedEmoji selectedPrefix (model: Model) = {
+        model with // ↩
+            CurrentStep = CurrentStep.start (Step.BreakingChange(BreakingChange.determine selectedEmoji selectedPrefix, invalidInput = None))
+    }
+
+    let startConfirmationStep breakingChange prefix (model: Model) = {
+        model with // ↩
+            CurrentStep = CurrentStep.start (Step.Confirmation(SemVerChange.determine breakingChange prefix, invalidInput = None))
+    }
+
+    let restartCurrentStep (model: Model) =
+        match model.CurrentStep.Step with
+        | Step.Prefix _ -> model |> startPrefixStep model.AvailablePrefixes
+        | Step.Emoji _ -> model |> startEmojiStep model.AvailableEmojis
+        | Step.BreakingChange _
+        | Step.Confirmation _ -> model
+
 /// Restart the previous step, if any.
 [<TailCall>]
 let rec private rollback (model: Model) =
     match model.CompletedSteps, model.CurrentStep.Step with
-    | [], Step.Emoji _ -> // ↩
-        { model with CurrentStep = CurrentStep.start (Step.Prefix(SelectableList.Prefixes.searchable model.SegmentsConfiguration model.AvailablePrefixes)) }
+    | [], Step.Emoji _ ->
+        // Switch back to prefix selection
+        // Both steps (PRefix and Emoji) are started in order to make all emojis and prefixes available again
+        model // ↩
+        |> startEmojiStep Emoji.All
+        |> startPrefixStep Prefix.All
     | [], _ -> model // No previous step to roll back to -> stay in the current step.
     | previousStep :: completedSteps, _ ->
         let restartAt (step: Step) = {
@@ -186,116 +229,96 @@ let rec private rollback (model: Model) =
             else
                 model
 
-let private startEmojiStep selectableEmojis (model: Model) = {
-    model with // ↩
-        AvailableEmojis = selectableEmojis
-        CurrentStep = CurrentStep.start (Step.Emoji(SelectableList.Emojis.searchable model.SegmentsConfiguration selectableEmojis))
-}
+[<AutoOpen>]
+module private StepCompletion =
+    let private addCompletedStep completedStep (model: Model) = {
+        model with // ↩
+            CompletedSteps = completedStep :: model.CompletedSteps
+    }
 
-let private startPrefixStep selectablePrefixes (model: Model) = {
-    model with // ↩
-        AvailablePrefixes = selectablePrefixes
-        CurrentStep = CurrentStep.start (Step.Prefix(SelectableList.Prefixes.searchable model.SegmentsConfiguration selectablePrefixes))
-}
+    let private completePrefixStep (selectedPrefix: Prefix) (model: Model) =
+        match model.CompletedSteps with
+        | [] ->
+            model // ↩
+            |> startEmojiStep (Relation.emojisForPrefix selectedPrefix)
+            |> addCompletedStep (CompletedStep.Prefix selectedPrefix)
+        | [ CompletedStep.Emoji selectedEmoji ] ->
+            model // ↩
+            |> startBreakingChangeStep selectedEmoji selectedPrefix
+            |> addCompletedStep (CompletedStep.Prefix selectedPrefix)
+        | _ -> failwith $"Unexpected state: cannot complete prefix step given completed steps %A{model.CompletedSteps}."
 
-let private startBreakingChangeStep selectedEmoji selectedPrefix (model: Model) = {
-    model with // ↩
-        CurrentStep = CurrentStep.start (Step.BreakingChange(BreakingChange.determine selectedEmoji selectedPrefix, invalidInput = None))
-}
+    let private completeEmojiStep (selectedEmoji: Emoji) (model: Model) =
+        match model.CompletedSteps with
+        | [] ->
+            model // ↩
+            |> startPrefixStep (Relation.prefixesForEmoji selectedEmoji)
+            |> addCompletedStep (CompletedStep.Emoji selectedEmoji)
+        | [ CompletedStep.Prefix selectedPrefix ] ->
+            model // ↩
+            |> startBreakingChangeStep selectedEmoji selectedPrefix
+            |> addCompletedStep (CompletedStep.Emoji selectedEmoji)
+        | _ -> failwith $"Unexpected state: cannot complete emoji step given completed steps %A{model.CompletedSteps}."
 
-let private startConfirmationStep breakingChange prefix (model: Model) = {
-    model with // ↩
-        CurrentStep = CurrentStep.start (Step.Confirmation(SemVerChange.determine breakingChange prefix, invalidInput = None))
-}
+    let private completeBreakingChangeStep breakingChange (model: Model) =
+        let prefix =
+            model.CompletedSteps
+            |> List.tryPick (
+                function
+                | CompletedStep.Prefix prefix -> Some prefix
+                | _ -> None
+            )
+            |> function
+                | Some prefix -> prefix
+                | None -> failwith "Cannot complete breaking change step without a selected prefix."
 
-let private addCompletedStep completedStep (model: Model) = {
-    model with // ↩
-        CompletedSteps = completedStep :: model.CompletedSteps
-}
-
-let private completePrefixStep (selectedPrefix: Prefix) (model: Model) =
-    match model.CompletedSteps with
-    | [] ->
         model // ↩
-        |> startEmojiStep (Relation.emojisForPrefix selectedPrefix)
-        |> addCompletedStep (CompletedStep.Prefix selectedPrefix)
-    | [ CompletedStep.Emoji selectedEmoji ] ->
-        model // ↩
-        |> startBreakingChangeStep selectedEmoji selectedPrefix
-        |> addCompletedStep (CompletedStep.Prefix selectedPrefix)
-    | _ -> failwith $"Unexpected state: cannot complete prefix step given completed steps %A{model.CompletedSteps}."
+        |> startConfirmationStep breakingChange prefix
+        |> addCompletedStep (CompletedStep.BreakingChange breakingChange)
 
-let private completeEmojiStep (selectedEmoji: Emoji) (model: Model) =
-    match model.CompletedSteps with
-    | [] ->
-        model // ↩
-        |> startPrefixStep (Relation.prefixesForEmoji selectedEmoji)
-        |> addCompletedStep (CompletedStep.Emoji selectedEmoji)
-    | [ CompletedStep.Prefix selectedPrefix ] ->
-        model // ↩
-        |> startBreakingChangeStep selectedEmoji selectedPrefix
-        |> addCompletedStep (CompletedStep.Emoji selectedEmoji)
-    | _ -> failwith $"Unexpected state: cannot complete emoji step given completed steps %A{model.CompletedSteps}."
+    // TODO: Notice.AllStepsCompleted
+    let private noticeAllStepsCompleted (model: Model) = model
 
-let private completeBreakingChangeStep breakingChange (model: Model) =
-    let prefix =
-        model.CompletedSteps
-        |> List.tryPick (
-            function
-            | CompletedStep.Prefix prefix -> Some prefix
-            | _ -> None
-        )
-        |> function
-            | Some prefix -> prefix
-            | None -> failwith "Cannot complete breaking change step without a selected prefix."
+    let private tryCompleteCurrentStep strategy (model: Model) =
+        match model.CurrentStep.Step with
+        // Steps using the given matching strategy
+        | Step.Prefix _ when model.CurrentStep.Input = CommandChar.Emoji && model.CompletedSteps = [] ->
+            // Switch the start step to Emoji selection
+            { model with AvailableEmojis = Emoji.All; CurrentStep = CurrentStep.start (Step.Emoji(SelectableList.Emojis.searchable model.SegmentsConfiguration Emoji.All)) }
+        | Step.Prefix(Match strategy selectedPrefix) -> model |> completePrefixStep selectedPrefix
+        | Step.Prefix _ -> model
 
-    model // ↩
-    |> startConfirmationStep breakingChange prefix
-    |> addCompletedStep (CompletedStep.BreakingChange breakingChange)
+        | Step.Emoji(Match strategy selectedEmoji) -> model |> completeEmojiStep selectedEmoji
+        | Step.Emoji _ -> model
 
-// TODO: noticeAllStepsCompleted
-let private noticeAllStepsCompleted (model: Model) = model
+        // Steps using the model.CurrentStep.Confirmed
+        | Step.BreakingChange(breakingChange, _) when breakingChange.Disabled || model.CurrentStep.Confirmed -> // ↩
+            model |> completeBreakingChangeStep breakingChange
+        | Step.BreakingChange(breakingChange, _) when model.CurrentStep.Input <> "" ->
+            if "Yes".StartsWith(model.CurrentStep.Input, StringComparison.OrdinalIgnoreCase) then
+                model |> completeBreakingChangeStep { breakingChange with Selected = true }
+            elif "No".StartsWith(model.CurrentStep.Input, StringComparison.OrdinalIgnoreCase) then
+                model |> completeBreakingChangeStep { breakingChange with Selected = false }
+            else // Invalid input -> reset
+                { model with CurrentStep = model.CurrentStep |> CurrentStep.setInvalidInput model.CurrentStep.Input }
+        | Step.BreakingChange _ -> model
 
-let private tryCompleteCurrentStep strategy (model: Model) =
-    match model.CurrentStep.Step with
-    // Steps using the given matching strategy
-    | Step.Prefix _ when model.CurrentStep.Input = CommandChar.Emoji && model.CompletedSteps = [] ->
-        // Switch the start step to Emoji selection
-        { model with CurrentStep = CurrentStep.start (Step.Emoji(SelectableList.Emojis.searchable model.SegmentsConfiguration model.AvailableEmojis)) }
-    | Step.Prefix(Match strategy selectedPrefix) -> model |> completePrefixStep selectedPrefix
-    | Step.Prefix _ -> model
-
-    | Step.Emoji(Match strategy selectedEmoji) -> model |> completeEmojiStep selectedEmoji
-    | Step.Emoji _ -> model
-
-    // Steps using the model.CurrentStep.Confirmed
-    | Step.BreakingChange(breakingChange, _) when breakingChange.Disabled || model.CurrentStep.Confirmed -> // ↩
-        model |> completeBreakingChangeStep breakingChange
-    | Step.BreakingChange(breakingChange, _) when model.CurrentStep.Input <> "" ->
-        if "Yes".StartsWith(model.CurrentStep.Input, StringComparison.OrdinalIgnoreCase) then
-            model |> completeBreakingChangeStep { breakingChange with Selected = true }
-        elif "No".StartsWith(model.CurrentStep.Input, StringComparison.OrdinalIgnoreCase) then
-            model |> completeBreakingChangeStep { breakingChange with Selected = false }
-        else // Invalid input -> reset
+        | Step.Confirmation _ when model.CurrentStep.Input <> "" -> // Invalid input -> reset
             { model with CurrentStep = model.CurrentStep |> CurrentStep.setInvalidInput model.CurrentStep.Input }
-    | Step.BreakingChange _ -> model
+        | Step.Confirmation _ when model.CurrentStep.Confirmed -> // ↩
+            model |> noticeAllStepsCompleted
+        | Step.Confirmation _ -> model
 
-    | Step.Confirmation _ when model.CurrentStep.Input <> "" -> // Invalid input -> reset
-        { model with CurrentStep = model.CurrentStep |> CurrentStep.setInvalidInput model.CurrentStep.Input }
-    | Step.Confirmation _ when model.CurrentStep.Confirmed -> // ↩
-        model |> noticeAllStepsCompleted
-    | Step.Confirmation _ -> model
+    [<TailCall>]
+    let rec tryCompleteManySteps strategy model =
+        let completedModel = tryCompleteCurrentStep strategy model
 
-[<TailCall>]
-let rec private tryCompleteManySteps strategy model =
-    let completedModel = tryCompleteCurrentStep strategy model
+        if completedModel = model then
+            completedModel // No changes -> more completion is not possible.
+        else
+            tryCompleteManySteps ExactMatch completedModel // Try complete more steps in a row, but only for exact matches.
 
-    if completedModel = model then
-        completedModel // No changes -> more completion is not possible.
-    else
-        tryCompleteManySteps ExactMatch completedModel // Try complete more steps in a row, but only for exact matches.
-
-let update (msg: Msg) (model: Model) =
+let rec update (msg: Msg) (model: Model) =
     let model = // ↩
         { model with Model.CurrentStep.Confirmed = (msg = Enter) }
 
@@ -310,3 +333,8 @@ let update (msg: Msg) (model: Model) =
     | Up, { Step = Step.Emoji emojis } -> { model with Model.CurrentStep.Step = emojis |> SelectableList.selectPrevious |> Step.Emoji }
     | (Down | Up), { Step = Step.BreakingChange(x, _) } -> { model with Model.CurrentStep.Step = Step.BreakingChange({ x with Selected = not x.Selected }, invalidInput = None) }
     | (Down | Up), _ -> model // No change for other steps
+    | ToggleFullTextSearch isFullText, _ ->
+        { model with SearchMode = if isFullText then SearchMode.FullText else SearchMode.Quick }
+        |> restartCurrentStep
+        |> performSearch
+        |> tryCompleteManySteps ExactMatch

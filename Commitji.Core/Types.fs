@@ -17,6 +17,12 @@ module SegmentId =
 type SegmentsConfiguration = { States: Map<SegmentId, SegmentState> }
 
 [<RequireQualifiedAccess>]
+type SearchMode =
+    | Quick
+    | FullText
+    | Custom of label: string * segments: SegmentsConfiguration
+
+[<RequireQualifiedAccess>]
 type SelectableItems<'t> =
     | Searchable of SearchableList<'t, SegmentId>
     | Searched of SearchableList<'t, SegmentId>
@@ -43,16 +49,6 @@ type SelectableList<'t> =
 type SelectableList =
     static member init items = // ↩
         { Items = items; Index = 0 }
-
-// TODO: remove
-// type List<'t> with
-//     member this.AsSearchable(initSegments) = [
-//         for index, item in List.indexed this do
-//             { Item = item; Segments = initSegments index item }
-//     ]
-//
-//     member this.AsSelectable(initSegments) = // ↩
-//         SelectableList.init (this.AsSearchable(initSegments))
 
 [<RequireQualifiedAccess>]
 type Step =
@@ -83,9 +79,9 @@ type Model = {
     /// The emojis available depend on the eventual prefix selected
     AvailableEmojis: Emoji list
 
-    /// Remark: Specify all SegmentTypes to enable the full-text search
-    SegmentsConfiguration: SegmentsConfiguration
+    SearchMode: SearchMode
 
+    // TODO: to remove once the copy to clipboard is implemented
     PreviousFullCompletion: (Prefix * Emoji * BreakingChange) option
 
 // TODO: Backspace Key Hint Cases
@@ -100,8 +96,7 @@ type Msg =
     | Down
     | Up
     | InputChanged of input: string
-// TODO: ToggleFullTextSearch - Key: [Ctrl]+[F] / [Echap]
-// | ToggleFullTextSearch of enabled: bool
+    | ToggleFullTextSearch of isFullText: bool
 
 // TODO: handle Notices
 type Notice =
