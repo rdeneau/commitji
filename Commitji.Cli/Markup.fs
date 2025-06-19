@@ -5,9 +5,15 @@ open Commitji.Core.Model.Search
 let inline private applyMarkup markup text = // ↩
     $"[%s{markup}]%s{text}[/]"
 
-let selected = applyMarkup "bold green1"
-let selectable = applyMarkup "green4"
 let current = applyMarkup "cyan"
+let inactive = applyMarkup "grey"
+let light = applyMarkup "silver"
+let selected = applyMarkup "green1"
+let selectedDim = applyMarkup "green3_1"
+let selectable = applyMarkup "green4"
+
+let em = applyMarkup "italic"
+let strong = applyMarkup "bold"
 
 let kbd text =
     applyMarkup "white on grey" $"[[%s{text}]]"

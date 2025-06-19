@@ -13,10 +13,10 @@ let private HalfPageSize = 5
 module private Markup =
     let private promptSegment isCurrent segmentId text =
         match segmentId, isCurrent with
-        | SegmentId.Code, true -> Markup.selected text
-        | SegmentId.Code, false -> Markup.selectable text
+        | SegmentId.Code, true -> text |> Markup.selected |> Markup.strong
+        | SegmentId.Code, false -> text |> Markup.selectable
         | SegmentId.Number, true
-        | SegmentId.Hint, true -> Markup.current text
+        | SegmentId.Hint, true -> text |> Markup.current
         | SegmentId.Number, false
         | SegmentId.Hint, false -> text
 
