@@ -80,28 +80,41 @@ module ``determine steps in the stepper`` =
                     StepName.Confirmation, StepStatus.Pending
                 ]
 
-        let (|PrefixEmojiBreakingChangeSelected|) (prefix: Prefix, emoji: Emoji, breakingChange: bool) =
+        let (|PrefixEmojiBreakingChangeSelected|) (prefix: Prefix, emoji: Emoji, breakingChange: BreakingChange) =
             let result =
-                (initial, [ prefix.Code; emoji.Code ]) // ↩
+                (initial, [ prefix.Code; emoji.Code; breakingChange.Code ]) // ↩
                 ||> List.scan (fun model input -> model |> State.update (Msg.InputChanged input))
                 |> List.tryPick (fun model ->
                     match model.CurrentStep.Step with
-                    | Step.BreakingChange _ ->
-                        model.CompletedSteps
-                        |> List.tryPick (
-                            function
-                            | CompletedStep.Emoji emoji -> Some (emoji, model)
-                            | _ -> None
-                        )
+                    | Step.Confirmation(semVer, _) ->
+                        let emoji =
+                            model.CompletedSteps
+                            |> List.tryPick (
+                                function
+                                | CompletedStep.Emoji emoji -> Some emoji
+                                | _ -> None
+                            )
+
+                        let breakingChange =
+                            model.CompletedSteps
+                            |> List.tryPick (
+                                function
+                                | CompletedStep.BreakingChange breakingChange -> Some breakingChange
+                                | _ -> None
+                            )
+
+                        match emoji, breakingChange with
+                        | Some emoji, Some breakingChange -> Some(emoji, breakingChange, semVer, model)
+                        | _ -> None
                     | _ -> None
                 )
 
             match result with
-            | None -> false, prefix, emoji, initial
-            | Some(emoji, model) -> true, prefix, emoji, model
+            | None -> false, prefix, emoji, breakingChange, None, initial
+            | Some(emoji, breakingChange, semVer, model) -> true, prefix, emoji, breakingChange, semVer, model
 
         [<Property>]
-        let ``4_ Prefix✔️ > Emoji✔️ > BreakingChange✔️ > [Confirmation]`` (PrefixEmojiSelectedOnly(ok, prefix, emoji, model)) =
+        let ``4_ Prefix✔️ > Emoji✔️ > BreakingChange✔️ > Confirmation✔️`` (PrefixEmojiBreakingChangeSelected(ok, prefix, emoji, breakingChange, semVer, model)) =
             if ok then
                 let actual = Stepper.determineSteps model
 
@@ -109,6 +122,6 @@ module ``determine steps in the stepper`` =
                 =! [ // ↩
                     StepName.Prefix, StepStatus.Completed prefix.Code
                     StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
-                    StepName.BreakingChange, StepStatus.Current
-                    StepName.Confirmation, StepStatus.Pending
+                    StepName.BreakingChange, StepStatus.Completed breakingChange.Code
+                    StepName.Confirmation, StepStatus.Completed (semVer |> Option.map _.Code |> Option.defaultValue "None")
                 ]

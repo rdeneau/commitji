@@ -5,6 +5,12 @@ type SemVerChange =
     | Minor
     | Patch
 
+    member this.Code =
+        match this with
+        | Major -> "Major"
+        | Minor -> "Minor"
+        | Patch -> "Patch"
+
 [<RequireQualifiedAccess>]
 module SemVerChange =
     let determine breakingChange prefix =
@@ -14,7 +20,7 @@ module SemVerChange =
         | BreakingChange.No, Prefix.Feat -> Some SemVerChange.Patch
         | BreakingChange.No, _ -> None
 
-    // TODO: convert into a property
+    // TODO: to move in the UI with nice markups...
     let code =
         function
         | Major -> "+1._._"
