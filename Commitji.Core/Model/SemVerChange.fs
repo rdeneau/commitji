@@ -7,16 +7,14 @@ type SemVerChange =
 
 [<RequireQualifiedAccess>]
 module SemVerChange =
-    let (|HasBreakingChange|_|) (breakingChange: BreakingChange) =
-        if breakingChange.Selected then Some() else None
-
     let determine breakingChange prefix =
         match breakingChange, prefix with
-        | HasBreakingChange, _ -> Some SemVerChange.Major
-        | _, Prefix.Fix -> Some SemVerChange.Minor
-        | _, Prefix.Feat -> Some SemVerChange.Patch
-        | _ -> None
+        | BreakingChange.Yes, _ -> Some SemVerChange.Major
+        | BreakingChange.No, Prefix.Fix -> Some SemVerChange.Minor
+        | BreakingChange.No, Prefix.Feat -> Some SemVerChange.Patch
+        | BreakingChange.No, _ -> None
 
+    // TODO: convert into a property
     let code =
         function
         | Major -> "+1._._"

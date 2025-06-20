@@ -4,16 +4,6 @@ module Commitji.Core.Types
 open Commitji.Core.Model
 open Commitji.Core.Model.Search
 
-[<RequireQualifiedAccess>]
-type SegmentId =
-    | Number
-    | Code
-    | Hint
-
-[<RequireQualifiedAccess>]
-module SegmentId =
-    let All = Set [ SegmentId.Number; SegmentId.Code; SegmentId.Hint ]
-
 type SegmentsConfiguration = { States: Map<SegmentId, SegmentState> }
 
 [<RequireQualifiedAccess>]
@@ -23,38 +13,10 @@ type SearchMode =
     | Custom of label: string * segments: SegmentsConfiguration
 
 [<RequireQualifiedAccess>]
-type SelectableItems<'t> =
-    | Searchable of SearchableList<'t, SegmentId>
-    | Searched of SearchableList<'t, SegmentId>
-
-/// Represents a list of items where we can select one item: the item with the given index.
-type SelectableList<'t> =
-    { Items: SelectableItems<'t>; Index: int }
-
-    member this.Head =
-        match this.Items with
-        | SelectableItems.Searchable items -> items.Head.Item
-        | SelectableItems.Searched items -> items.Head.Item
-
-    member this.ItemAt index =
-        match this.Items with
-        | SelectableItems.Searchable items -> items[index].Item
-        | SelectableItems.Searched items -> items[index].Item
-
-    member this.Length =
-        match this.Items with
-        | SelectableItems.Searchable items -> items.Length
-        | SelectableItems.Searched items -> items.Length
-
-type SelectableList =
-    static member init items = // ↩
-        { Items = items; Index = 0 }
-
-[<RequireQualifiedAccess>]
 type Step =
     | Prefix of SelectableList<Prefix>
     | Emoji of SelectableList<Emoji>
-    | BreakingChange of BreakingChange * invalidInput: string option // TODO RDE: SelectableList<?> - ? can be `Yes | No` then Disabled means not in the list
+    | BreakingChange of SelectableList<BreakingChange>
     | Confirmation of SemVerChange option * invalidInput: string option
 
 type CurrentStep = {
@@ -73,11 +35,14 @@ type Model = {
     CurrentStep: CurrentStep
     CompletedSteps: CompletedStep list
 
-    /// The prefixes available depend on the eventual emoji selected
+    /// Remark: depend on the eventual emoji selected
     AvailablePrefixes: Prefix list
 
-    /// The emojis available depend on the eventual prefix selected
+    /// Remark: depend on the eventual prefix selected
     AvailableEmojis: Emoji list
+
+    /// Remark: depend on the eventual prefix & emoji selected
+    AvailableBreakingChanges: BreakingChange list
 
     SearchMode: SearchMode
 

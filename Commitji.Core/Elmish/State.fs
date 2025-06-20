@@ -10,20 +10,9 @@ type private MatchingStrategy =
 
 let private (|Match|_|) strategy ({ Items = items; Index = index }: SelectableList<'t>) =
     match strategy, items with
-    | FirstMatchAtIndex, SelectableItems.Searchable list -> Some(list[index].Item)
-    | FirstMatchAtIndex, SelectableItems.Searched list -> Some(list[index].Item)
-    | ExactMatch, SelectableItems.Searchable [ x ] -> Some x.Item
-    | ExactMatch, SelectableItems.Searched [ x ] -> Some x.Item
+    | FirstMatchAtIndex, list -> Some(list[index].Item)
+    | ExactMatch, [ x ] -> Some x.Item
     | _ -> None
-
-[<RequireQualifiedAccess>]
-module Step =
-    let setInvalidInput input step =
-        match step with
-        | Step.Prefix _
-        | Step.Emoji _ -> failwith $"%A{step} does not hold an invalid input"
-        | Step.BreakingChange(breakingChange, _) -> Step.BreakingChange(breakingChange, invalidInput = Some input)
-        | Step.Confirmation(semVerChangeOption, _) -> Step.Confirmation(semVerChangeOption, invalidInput = Some input)
 
 [<RequireQualifiedAccess>]
 module private CurrentStep =
@@ -33,11 +22,7 @@ module private CurrentStep =
         Confirmed = false
     }
 
-    let setInvalidInput input (currentStep: CurrentStep) = {
-        Step = Step.setInvalidInput input currentStep.Step
-        Input = ""
-        Confirmed = false
-    }
+    let setInvalidInput _input (currentStep: CurrentStep) = currentStep // TODO: to implement with a Notice
 
 [<RequireQualifiedAccess>]
 module private SegmentsConfiguration =
@@ -97,10 +82,10 @@ module Extensions =
 [<RequireQualifiedAccess>]
 module SelectableList =
     let searchedBy input (search: Search<'t, _>) items =
-        search.Run(input, items, StringComparison.OrdinalIgnoreCase) |> SelectableItems.Searched |> SelectableList.init
+        search.Run(input, items, StringComparison.OrdinalIgnoreCase) |> SelectableList.init
 
     let searchable (search: Search<'t, _>) items =
-        search.Init(items) |> SelectableItems.Searchable |> SelectableList.init
+        search.Init(items) |> SelectableList.init
 
     [<RequireQualifiedAccess>]
     module Prefixes =
@@ -122,7 +107,7 @@ module SelectableList =
         selectableList with
             Index =
                 match selectableList.Index + 1 with
-                | i when i >= selectableList.Length -> 0 // Wrap around to the first item
+                | i when i >= selectableList.Items.Length -> 0 // Wrap around to the first item
                 | i -> i
     }
 
@@ -130,7 +115,7 @@ module SelectableList =
         selectableList with
             Index =
                 match selectableList.Index with
-                | 0 -> selectableList.Length - 1 // Wrap around to the last item
+                | 0 -> selectableList.Items.Length - 1 // Wrap around to the last item
                 | i -> i - 1
     }
 
@@ -142,6 +127,7 @@ let initWith searchMode =
         CompletedSteps = []
         AvailablePrefixes = Prefix.All
         AvailableEmojis = Emoji.All
+        AvailableBreakingChanges = BreakingChange.All
         SearchMode = searchMode
         PreviousFullCompletion = None
     }
@@ -181,10 +167,13 @@ module private StartStep =
             CurrentStep = CurrentStep.start (Step.Prefix(SelectableList.Prefixes.searchable model.SegmentsConfiguration selectablePrefixes))
     }
 
-    let startBreakingChangeStep selectedEmoji selectedPrefix (model: Model) = {
-        model with // ↩
-            CurrentStep = CurrentStep.start (Step.BreakingChange(BreakingChange.determine selectedEmoji selectedPrefix, invalidInput = None))
-    }
+    let startBreakingChangeStep selectedEmoji selectedPrefix (model: Model) =
+        let tbd = BreakingChange.determine selectedEmoji selectedPrefix
+
+        {
+            model with // ↩
+                CurrentStep = CurrentStep.start (Step.BreakingChange(tbd))
+        }
 
     let startConfirmationStep breakingChange prefix (model: Model) = {
         model with // ↩
@@ -260,18 +249,10 @@ module private StepCompletion =
         | Step.Emoji(Match strategy selectedEmoji) -> model |> completeEmojiStep selectedEmoji
         | Step.Emoji _ -> model
 
-        // Steps using the model.CurrentStep.Confirmed
-        | Step.BreakingChange(breakingChange, _) when breakingChange.Disabled || model.CurrentStep.Confirmed -> // ↩
-            model |> completeBreakingChangeStep breakingChange
-        | Step.BreakingChange(breakingChange, _) when model.CurrentStep.Input <> "" ->
-            if "Yes".StartsWith(model.CurrentStep.Input, StringComparison.OrdinalIgnoreCase) then
-                model |> completeBreakingChangeStep { breakingChange with Selected = true }
-            elif "No".StartsWith(model.CurrentStep.Input, StringComparison.OrdinalIgnoreCase) then
-                model |> completeBreakingChangeStep { breakingChange with Selected = false }
-            else // Invalid input -> reset
-                { model with CurrentStep = model.CurrentStep |> CurrentStep.setInvalidInput model.CurrentStep.Input }
+        | Step.BreakingChange(Match strategy selectedBreakingChange) -> model |> completeBreakingChangeStep selectedBreakingChange
         | Step.BreakingChange _ -> model
 
+        // Steps using the model.CurrentStep.Confirmed
         | Step.Confirmation _ when model.CurrentStep.Input <> "" -> // Invalid input -> reset
             { model with CurrentStep = model.CurrentStep |> CurrentStep.setInvalidInput model.CurrentStep.Input }
         | Step.Confirmation _ when model.CurrentStep.Confirmed -> // ↩
@@ -298,7 +279,8 @@ let rec update (msg: Msg) (model: Model) =
     | Up, { Step = Step.Prefix prefixes } -> { model with Model.CurrentStep.Step = prefixes |> SelectableList.selectPrevious |> Step.Prefix }
     | Down, { Step = Step.Emoji emojis } -> { model with Model.CurrentStep.Step = emojis |> SelectableList.selectNext |> Step.Emoji }
     | Up, { Step = Step.Emoji emojis } -> { model with Model.CurrentStep.Step = emojis |> SelectableList.selectPrevious |> Step.Emoji }
-    | (Down | Up), { Step = Step.BreakingChange(x, _) } -> { model with Model.CurrentStep.Step = Step.BreakingChange({ x with Selected = not x.Selected }, invalidInput = None) }
+    | Down, { Step = Step.BreakingChange breakingChanges } -> { model with Model.CurrentStep.Step = breakingChanges |> SelectableList.selectNext |> Step.BreakingChange }
+    | Up, { Step = Step.BreakingChange breakingChanges } -> { model with Model.CurrentStep.Step = breakingChanges |> SelectableList.selectPrevious |> Step.BreakingChange }
     | (Down | Up), _ -> model // No change for other steps
     | ToggleFullTextSearch isFullText, _ ->
         { model with SearchMode = if isFullText then SearchMode.FullText else SearchMode.Quick }

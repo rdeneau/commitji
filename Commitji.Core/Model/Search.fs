@@ -1,5 +1,6 @@
 ﻿module Commitji.Core.Model.Search
 
+open System
 open Commitji.Core.Helpers
 
 [<RequireQualifiedAccess>]
@@ -16,28 +17,6 @@ type SegmentState =
     | NotSearchable
     | Searchable of operation: SearchOperation
     | Searched of hits: int list * length: int
-
-type SearchSegment<'id> = {
-    Id: 'id
-    Text: string
-    State: SegmentState
-}
-
-[<RequireQualifiedAccess>]
-module SearchSegment =
-    let create id text state = {
-        Id = id
-        Text = text
-        State = state
-    }
-
-type SearchItem<'t, 'id> = {
-    Item: 't
-    Index: int
-    Segments: SearchSegment<'id> list
-}
-
-type SearchableList<'t, 'id> = SearchItem<'t, 'id> list
 
 [<RequireQualifiedAccess>]
 type SearchInput =
@@ -71,8 +50,60 @@ type SearchInput =
         | Some searchInput -> searchInput
         | None -> invalidArg (nameof notEmptyInput) "Cannot be empty"
 
-type Search<'t, 'id>(initSegmentsByIndex: int -> 't -> SearchSegment<'id> list) =
-    let buildResult (searchItem: int -> 't -> SearchItem<'t, 'id> option) (items: 't list) =
+type SearchSegment = {
+    Id: SegmentId
+    Text: string
+    State: SegmentState
+}
+
+[<RequireQualifiedAccess>]
+module SearchSegment =
+    let create id text state = {
+        Id = id
+        Text = text
+        State = state
+    }
+
+type SearchSegment with
+    static member NotSearchable(id, text) =
+        SearchSegment.create id text SegmentState.NotSearchable
+
+    static member SearchableByStart(id, text) =
+        SearchSegment.create id text (SegmentState.Searchable SearchOperation.StartsWith)
+
+    static member SearchableByContent(id, text) =
+        SearchSegment.create id text (SegmentState.Searchable SearchOperation.Contains)
+
+    static member Searched(id, text, searchInput: SearchInput, hits) =
+        SearchSegment.create id text (SegmentState.Searched(hits, searchInput.Length))
+
+    static member NotFound(id, text, searchInput: SearchInput) =
+        SearchSegment.Searched(id, text, searchInput, hits = [])
+
+    static member Found(id, text, searchInput: SearchInput, firstHit, [<ParamArray>] otherHits) =
+        SearchSegment.Searched(id, text, searchInput, hits = firstHit :: List.ofArray otherHits)
+
+type SearchItem<'t> = {
+    Item: 't
+    Index: int
+    Segments: SearchSegment list
+}
+
+type SearchableList<'t> = SearchItem<'t> list
+
+[<RequireQualifiedAccess>]
+module SearchableList =
+    let init segments items = [
+        for index, item in Seq.indexed items do
+            yield {
+                Item = item
+                Index = index
+                Segments = segments index item
+            }
+    ]
+
+type Search<'t, 'id>(initSegmentsByIndex: int -> 't -> SearchSegment list) =
+    let buildResult (searchItem: int -> 't -> SearchItem<'t> option) (items: 't list) =
         // We call `searchItem` twice:
         // 1. First to filter out items that do not match the search.
         // 2. Second to the items with the right index.
@@ -123,7 +154,7 @@ type Search<'t, 'id>(initSegmentsByIndex: int -> 't -> SearchSegment<'id> list) 
                 Segments = segments
             }
 
-    member _.Init(items) : SearchableList<'t, 'id> =
+    member _.Init(items) : SearchableList<'t> =
         items
         |> buildResult (fun index item ->
             Some {
@@ -133,6 +164,6 @@ type Search<'t, 'id>(initSegmentsByIndex: int -> 't -> SearchSegment<'id> list) 
             }
         )
 
-    member this.Run(input: SearchInput, items: 't list, comparison) : SearchableList<'t, 'id> =
+    member this.Run(input: SearchInput, items: 't list, comparison) : SearchableList<'t> =
         items // ↩
         |> buildResult (searchItem input.Value comparison)

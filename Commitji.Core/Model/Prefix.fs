@@ -1,6 +1,6 @@
 ﻿namespace Commitji.Core.Model
 
-open Commitji.Core
+open Commitji.Core.Helpers
 
 /// <summary>
 /// Git commit prefix, based on Angular conventional commits (*) with some changes:
@@ -46,4 +46,4 @@ type Prefix =
 
 [<RequireQualifiedAccess>]
 module Prefix =
-    let All = Helpers.Reflection.getEnumLikeUnionCases<Prefix> ()
+    let All = Reflection.getEnumLikeUnionCases<Prefix> ()

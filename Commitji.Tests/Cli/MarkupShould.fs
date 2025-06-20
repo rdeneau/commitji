@@ -1,8 +1,8 @@
 ﻿module Commitji.Tests.Cli.MarkupShould
 
 open Commitji.Cli
+open Commitji.Core.Model
 open Commitji.Core.Model.Search
-open Commitji.Core.Types
 open Swensen.Unquote
 open global.Xunit
 
