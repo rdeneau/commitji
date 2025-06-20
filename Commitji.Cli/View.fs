@@ -27,16 +27,17 @@ module Stepper =
                 match step with
                 | CompletedStep.Prefix prefix -> StepName.Prefix, StepStatus.Completed prefix.Code
                 | CompletedStep.Emoji emoji -> StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
-                | CompletedStep.BreakingChange breakingChange -> StepName.BreakingChange, StepStatus.Completed breakingChange.AsString
+                | CompletedStep.BreakingChange breakingChange -> StepName.BreakingChange, StepStatus.Completed breakingChange.Code
 
             match model.CurrentStep.Step with
             | Step.Prefix _ -> StepName.Prefix, StepStatus.Current
             | Step.Emoji _ -> StepName.Emoji, StepStatus.Current
             | Step.BreakingChange _ -> StepName.BreakingChange, StepStatus.Current
             | Step.Confirmation(semVerChangeOption, _) ->
+                // ⚠️ The step is directly Completed to indicate the semantic version change.
                 let semVer =
                     match semVerChangeOption with
-                    | Some change -> $"%A{change} [grey]%s{change |> SemVerChange.code}[/]"
+                    | Some change -> change.Code
                     | None -> "None"
 
                 StepName.Confirmation, StepStatus.Completed semVer

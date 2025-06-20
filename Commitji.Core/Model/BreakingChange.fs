@@ -8,15 +8,15 @@ type BreakingChange =
     | Yes
     | No
 
-    member this.AsBool =
-        match this with
-        | Yes -> true
-        | No -> false
-
-    member this.AsString =
+    member this.Code =
         match this with
         | Yes -> "Yes"
         | No -> "No"
+
+    member this.Selected =
+        match this with
+        | Yes -> true
+        | No -> false
 
     member this.Toggle() =
         match this with
@@ -27,20 +27,9 @@ type BreakingChange =
 module BreakingChange =
     let All = Reflection.getEnumLikeUnionCases<BreakingChange> ()
 
-    let ofBool b = // ↩
-        if b then BreakingChange.Yes else BreakingChange.No
-
-    let ofString =
-        function
-        | String.Eq "Y"
-        | String.Eq "Yes" -> Some BreakingChange.Yes
-        | String.Eq "N"
-        | String.Eq "No" -> Some BreakingChange.No
-        | _ -> None
-
     let private selectableList (breakingChanges: BreakingChange list) =
         breakingChanges
-        |> SearchableList.init (fun _ x -> [ SearchSegment.SearchableByStart(SegmentId.Code, x.AsString) ])
+        |> SearchableList.init (fun _ x -> [ SearchSegment.SearchableByStart(SegmentId.Code, x.Code) ])
         |> SelectableList.init
 
     /// Determine the available breaking changes matching on the given emoji and prefix.
