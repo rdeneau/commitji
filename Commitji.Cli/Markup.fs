@@ -18,7 +18,7 @@ let strong = applyMarkup "bold"
 let kbd text =
     applyMarkup "white on grey" $"[[%s{text}]]"
 
-let highlightSegmentWith applyHighlight (segment: SearchSegment<_>) =
+let highlightSegmentWith applyHighlight (segment: SearchSegment) =
     let text = segment.Text
 
     match segment.State with

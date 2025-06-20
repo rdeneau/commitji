@@ -12,12 +12,6 @@ open global.Xunit
 [<AutoOpen>]
 module Item =
     [<RequireQualifiedAccess>]
-    type SegmentType =
-        | Num
-        | Code
-        | Label
-
-    [<RequireQualifiedAccess>]
     type ItemType =
         | Prefix of Prefix
         | Emoji of Emoji
@@ -33,9 +27,9 @@ module Item =
 
         member item.ToSegmentText(segmentType) =
             match segmentType with
-            | SegmentType.Num -> item.Num
-            | SegmentType.Code -> item.Code
-            | SegmentType.Label -> item.Label
+            | SegmentId.Number -> item.Num
+            | SegmentId.Code -> item.Code
+            | SegmentId.Hint -> item.Label
 
         member item.ToSearchSegment(segmentType, state) = {
             Id = segmentType
@@ -121,15 +115,15 @@ module ``1_ init - helpers`` =
 
         member this.ToList() = [
             match this.NumState with
-            | Some state -> this.Item.ToSearchSegment(SegmentType.Num, state)
+            | Some state -> this.Item.ToSearchSegment(SegmentId.Number, state)
             | None -> ()
 
             match this.CodeState with
-            | Some state -> this.Item.ToSearchSegment(SegmentType.Code, state)
+            | Some state -> this.Item.ToSearchSegment(SegmentId.Code, state)
             | None -> ()
 
             match this.LabelState with
-            | Some state -> this.Item.ToSearchSegment(SegmentType.Label, state)
+            | Some state -> this.Item.ToSearchSegment(SegmentId.Hint, state)
             | None -> ()
         ]
 
@@ -181,7 +175,7 @@ module ``1_ init`` =
                     Index = index
                     Segments = [
                         {
-                            Id = SegmentType.Code
+                            Id = SegmentId.Code
                             Text = item.Code
                             State =
                                 match searchType with
@@ -208,7 +202,7 @@ module ``1_ init`` =
                     Index = index
                     Segments = [
                         {
-                            Id = SegmentType.Num
+                            Id = SegmentId.Number
                             Text = item.Num
                             State =
                                 match searchType with
@@ -219,7 +213,7 @@ module ``1_ init`` =
                                 | Search.ByCodeContent -> SegmentState.NotSearchable
                         }
                         {
-                            Id = SegmentType.Code
+                            Id = SegmentId.Code
                             Text = item.Code
                             State =
                                 match searchType with
@@ -230,7 +224,7 @@ module ``1_ init`` =
                                 | Search.FullText -> SegmentState.Searchable SearchOperation.Contains
                         }
                         {
-                            Id = SegmentType.Label
+                            Id = SegmentId.Hint
                             Text = item.Label
                             State =
                                 match searchType with
@@ -252,7 +246,7 @@ module ``1_ init`` =
 module ``2_ run - common - helpers`` =
     [<RequireQualifiedAccess>]
     module SearchableList =
-        let autoIndex (list: SearchableList<'t, 'id>) =
+        let autoIndex (list: SearchableList<'t>) =
             list |> List.mapi (fun index item -> { item with Index = index })
 
     [<RequireQualifiedAccess>]
@@ -277,7 +271,10 @@ module ``2_ run - common - helpers`` =
     type Fixture(len) =
         member _.NotSearchable = SegmentState.NotSearchable
         member _.NotFound = SegmentState.Searched([], len)
-        member _.FoundAt([<ParamArray>] hits) = SegmentState.Searched(List.ofArray hits, len)
+
+        member _.FoundAt([<ParamArray>] hits) =
+            SegmentState.Searched(List.ofArray hits, len)
+
         member x.FoundAtTheStart = x.FoundAt(0)
         member x.FoundOnceAt(i: int) = x.FoundAt(i)
         member x.FoundTwiceAt(i, j) = x.FoundAt(i, j)
@@ -291,9 +288,9 @@ module ``2_ run - common - helpers`` =
             Item = item
             Index = -1
             Segments = [ // ↩
-                item.ToSearchSegment(SegmentType.Num, (defaultArg num defaultValue) fixture)
-                item.ToSearchSegment(SegmentType.Code, (defaultArg code defaultValue) fixture)
-                item.ToSearchSegment(SegmentType.Label, (defaultArg label defaultValue) fixture)
+                item.ToSearchSegment(SegmentId.Number, (defaultArg num defaultValue) fixture)
+                item.ToSearchSegment(SegmentId.Code, (defaultArg code defaultValue) fixture)
+                item.ToSearchSegment(SegmentId.Hint, (defaultArg label defaultValue) fixture)
             ]
         }
 
@@ -408,7 +405,7 @@ module ``2a_ run - normal search on prefixes - helpers`` =
 
                     // ... 012345678
                     // ...    ↓
-                    fixture.SearchSegment(Prefix.Chore, code = _.FoundOnceAt( 3))
+                    fixture.SearchSegment(Prefix.Chore, code = _.FoundOnceAt(3))
 
                     fixture.SearchSegment(Prefix.Revert, code = _.FoundAtTheStart)
                 ]
@@ -419,11 +416,11 @@ module ``2a_ run - normal search on prefixes - helpers`` =
                 SearchableList.autoIndex [
                     // ... 012345678
                     // ...       ↓
-                    fixture.SearchSegment(Prefix.Refactor, code = _.FoundOnceAt( 6))
+                    fixture.SearchSegment(Prefix.Refactor, code = _.FoundOnceAt(6))
 
                     // ... 012345678
                     // ...   ↓
-                    fixture.SearchSegment(Prefix.Chore, code = _.FoundOnceAt( 2))
+                    fixture.SearchSegment(Prefix.Chore, code = _.FoundOnceAt(2))
                 ]
 
         let items = AllPrefixItems |> Map.valuesAsList
@@ -593,7 +590,7 @@ module ``2b_ run - full-text search on emojis - helpers`` =
                     fixture.SearchSegment(Emoji.Dizzy, num = _.FoundAtTheStart)
                     fixture.SearchSegment(Emoji.Egg, num = _.FoundAtTheStart)
                     fixture.SearchSegment(Emoji.Fire, num = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.Pencil2, code = _.FoundOnceAt( 6))
+                    fixture.SearchSegment(Emoji.Pencil2, code = _.FoundOnceAt(6))
                 ]
 
             // | Num | Code                      | Label                                                         |
@@ -613,8 +610,8 @@ module ``2b_ run - full-text search on emojis - helpers`` =
             | InputForEmojiSearch.Build ->
                 SearchableList.autoIndex [ // ↩
                     fixture.SearchSegment(Emoji.BuildingConstruction, code = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.ConstructionWorker, label = _.FoundOnceAt( 17))
-                    fixture.SearchSegment(Emoji.GreenHeart, label = _.FoundOnceAt( 7))
+                    fixture.SearchSegment(Emoji.ConstructionWorker, label = _.FoundOnceAt(17))
+                    fixture.SearchSegment(Emoji.GreenHeart, label = _.FoundOnceAt(7))
                 ]
 
             // | Num | Code                      | Label                                                         |
@@ -627,7 +624,7 @@ module ``2b_ run - full-text search on emojis - helpers`` =
             // |-----|---------------------------|---------------------------------------------------------------|
             | InputForEmojiSearch.Down ->
                 SearchableList.autoIndex [ // ↩
-                    fixture.SearchSegment(Emoji.ArrowDown, code = _.FoundOnceAt( 6), label = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.ArrowDown, code = _.FoundOnceAt(6), label = _.FoundAtTheStart)
                 ]
 
             // | Num | Code                      | Label                                                         |
@@ -650,8 +647,8 @@ module ``2b_ run - full-text search on emojis - helpers`` =
             // |-----|---------------------------|---------------------------------------------------------------|
             | InputForEmojiSearch.Fix ->
                 SearchableList.autoIndex [
-                    fixture.SearchSegment(Emoji.AdhesiveBandage, label = _.FoundOnceAt( 7))
-                    fixture.SearchSegment(Emoji.Ambulance, label = _.FoundOnceAt( 12))
+                    fixture.SearchSegment(Emoji.AdhesiveBandage, label = _.FoundOnceAt(7))
+                    fixture.SearchSegment(Emoji.Ambulance, label = _.FoundOnceAt(12))
                     fixture.SearchSegment(Emoji.Bug, label = _.FoundAtTheStart)
                     fixture.SearchSegment(Emoji.GreenHeart, label = _.FoundAtTheStart)
                     fixture.SearchSegment(Emoji.Lock, label = _.FoundAtTheStart)
@@ -672,8 +669,8 @@ module ``2b_ run - full-text search on emojis - helpers`` =
             // |-----|---------------------------|---------------------------------------------------------------|
             | InputForEmojiSearch.Test ->
                 SearchableList.autoIndex [ // ↩
-                    fixture.SearchSegment(Emoji.TestTube, code = _.FoundAtTheStart, label = _.FoundOnceAt( 14))
-                    fixture.SearchSegment(Emoji.WhiteCheckMark, label = _.FoundOnceAt( 21))
+                    fixture.SearchSegment(Emoji.TestTube, code = _.FoundAtTheStart, label = _.FoundOnceAt(14))
+                    fixture.SearchSegment(Emoji.WhiteCheckMark, label = _.FoundOnceAt(21))
                 ]
 
         let items = AllEmojiItems |> Map.valuesAsList

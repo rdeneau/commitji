@@ -1,6 +1,6 @@
 ﻿namespace Commitji.Core.Model
 
-open Commitji.Core
+open Commitji.Core.Helpers
 
 /// <summary>
 /// Gitmoji emoji, from https://gitmoji.dev
@@ -171,4 +171,4 @@ type Emoji =
 
 [<RequireQualifiedAccess>]
 module Emoji =
-    let All = Helpers.Reflection.getEnumLikeUnionCases<Emoji> ()
+    let All = Reflection.getEnumLikeUnionCases<Emoji> ()

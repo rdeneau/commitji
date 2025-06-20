@@ -7,6 +7,11 @@ module Map =
     let valuesAsList (map: Map<'k, 'v>) = [ for KeyValue(_, value) in map -> value ]
 
 [<RequireQualifiedAccess>]
+module Option =
+    let ofBool b =
+        if b then Some() else None
+
+[<RequireQualifiedAccess>]
 module Reflection =
     open Microsoft.FSharp.Reflection
 
@@ -22,6 +27,13 @@ module Reflection =
 
 [<RequireQualifiedAccess>]
 module String =
+    let emptyIfNull (s: string) =
+        if isNull s then String.Empty else s
+
+    /// String equality case-insensitive.
+    let (|Eq|_|) (other: string) (s: string) =
+        String.Equals(s, other, StringComparison.OrdinalIgnoreCase) |> Option.ofBool
+
     let (|Int|_|) (s: string) =
         match Int32.TryParse s with
         | true, i -> Some i

@@ -58,7 +58,7 @@ module private Render =
                 match step with
                 | CompletedStep.Prefix prefix -> StepName.Prefix, StepStatus.Completed prefix.Code
                 | CompletedStep.Emoji emoji -> StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
-                | CompletedStep.BreakingChange b -> StepName.BreakingChange, StepStatus.Completed(if b.Selected then "Yes" else "No")
+                | CompletedStep.BreakingChange breakingChange -> StepName.BreakingChange, StepStatus.Completed breakingChange.AsString
 
             match model.CurrentStep.Step with
             | Step.Prefix _ -> StepName.Prefix, StepStatus.Current
@@ -92,18 +92,11 @@ module private Render =
 
         // TODO: remove duplication between steps -> create a common component?
         match model.CurrentStep.Step with
-        | Step.Prefix matchingPrefixes ->
+        | Step.Prefix prefixes ->
             instruction "Select a prefix for the commit message:"
 
-            match matchingPrefixes.Items with
-            | SelectableItems.Searchable items ->
-                SelectionPrompt.render (currentChoiceIndex = matchingPrefixes.Index) [
-                    for prefix in items do
-                        prefix.Segments
-                ]
-            | SelectableItems.Searched items ->
-                SelectionPrompt.render (currentChoiceIndex = matchingPrefixes.Index) [
-                    for prefix in items do
+            SelectionPrompt.render (currentChoiceIndex = prefixes.Index) [
+                    for prefix in prefixes.Items do
                         prefix.Segments
                 ]
 
@@ -133,18 +126,11 @@ module private Render =
                 $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "C"} to exit"""
             ]
 
-        | Step.Emoji matchingEmojis ->
+        | Step.Emoji emojis ->
             instruction "Select an emoji for the commit message:"
 
-            match matchingEmojis.Items with
-            | SelectableItems.Searchable items ->
-                SelectionPrompt.render (currentChoiceIndex = matchingEmojis.Index) [
-                    for emoji in items do
-                        emoji.Segments
-                ]
-            | SelectableItems.Searched items ->
-                SelectionPrompt.render (currentChoiceIndex = matchingEmojis.Index) [
-                    for emoji in items do
+            SelectionPrompt.render (currentChoiceIndex = emojis.Index) [
+                    for emoji in emojis.Items do
                         emoji.Segments
                 ]
 
@@ -170,17 +156,13 @@ module private Render =
                 $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "C"} to exit"""
             ]
 
-        | Step.BreakingChange(breakingChange, invalidInput) ->
+        | Step.BreakingChange breakingChanges ->
             instruction "Indicate if it's a breaking change:"
 
-            let codeChoice code = [ // ↩
-                    SearchSegment.create SegmentId.Code code (SegmentState.Searchable SearchOperation.StartsWith)
+            SelectionPrompt.render (currentChoiceIndex = breakingChanges.Index) [
+                    for breakingChanges in breakingChanges.Items do
+                        breakingChanges.Segments
                 ]
-
-            SelectionPrompt.render (currentChoiceIndex = (if breakingChange.Selected then 0 else 1)) [
-                codeChoice "Yes" // ↩
-                codeChoice "No"
-            ]
 
             AnsiConsole.WriteLine ""
 
@@ -201,10 +183,6 @@ module private Render =
                 $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "C"} to exit"""
             ]
 
-            match invalidInput with
-            | Some input -> AnsiConsole.MarkupLine($"[red]Invalid input: {input}[/]")
-            | None -> ()
-
         | Step.Confirmation(_, invalidInput) ->
             instruction "Confirm your selection"
             AnsiConsole.WriteLine ""
@@ -217,6 +195,7 @@ module private Render =
                 $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "C"} to exit"""
             ]
 
+            // TODO: display for all steps when using the Notice, in a panel
             match invalidInput with
             | Some input -> AnsiConsole.MarkupLine($"[red]Invalid input: {input}[/]")
             | None -> ()

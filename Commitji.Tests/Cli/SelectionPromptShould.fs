@@ -1,12 +1,12 @@
 ﻿module Commitji.Tests.Cli.SelectionPromptShould
 
 open Commitji.Cli.Components.SelectionPrompt
+open Commitji.Core.Model
 open Commitji.Core.Model.Search
-open Commitji.Core.Types
 open Swensen.Unquote
 open global.Xunit
 
-module ``8 choices`` =
+module ``handle 8 choices`` =
     [<AutoOpen>]
     module Fixture =
         let sut = SelectionPrompt(halfPageSize = 3)

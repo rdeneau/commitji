@@ -4,7 +4,6 @@ open Commitji.Core.Model
 open Commitji.Core.Model.Search
 open Commitji.Core.State
 open Commitji.Core.Types
-open FsCheck
 open FsCheck.Xunit
 open Swensen.Unquote
 open global.Xunit
@@ -82,6 +81,7 @@ module Fixture =
         CompletedSteps = []
         AvailablePrefixes = Prefix.All
         AvailableEmojis = Emoji.All
+        AvailableBreakingChanges = BreakingChange.All
         SearchMode = searchMode
         PreviousFullCompletion = None
     }
@@ -114,12 +114,10 @@ module Fixture =
         member this.SearchableEmojis = this.SearchMode.SearchableEmojis
 
         static member private SearchedItem(builder: Searched.CodeHits<_>, itemsWithHits) =
-            SelectableList.init (
-                SelectableItems.Searched [
-                    for index, (item: 'item, hits) in List.indexed itemsWithHits do
-                        builder.SearchItem(index, item, hits)
-                ]
-            )
+            SelectableList.init [
+                for index, (item: 'item, hits) in List.indexed itemsWithHits do
+                    builder.SearchItem(index, item, hits)
+            ]
 
         static member SearchedPrefixesBy(input, prefixesWithHits) =
             Fixture.SearchedItem(Searched.prefix.By(input), prefixesWithHits)
@@ -589,7 +587,7 @@ module ``1_ select prefix first`` =
 
     [<Property>]
     let ``select the first prefix matching the given input when pressing [Enter]`` (InputWithManyMatchingPrefixes(model, input, expectedPrefixes)) =
-        let expectedPrefix = expectedPrefixes.Head
+        let expectedPrefix = expectedPrefixes.Items.Head.Item
 
         let actual =
             model // ↩
@@ -757,7 +755,7 @@ module ``5_ select breaking change`` =
         |> shouldHave [
             CompleteStep(CompletedStep.Prefix expectedPrefix) // ↩
             CompleteStep(CompletedStep.Emoji Emoji.Boom)
-            CompleteStep(CompletedStep.BreakingChange { Selected = true; Disabled = true })
+            CompleteStep(CompletedStep.BreakingChange BreakingChange.Yes)
         ]
 
     [<Property>]
@@ -774,7 +772,7 @@ module ``5_ select breaking change`` =
         |> shouldHave [
             CompleteStep(CompletedStep.Prefix expectedPrefix) // ↩
             CompleteStep(CompletedStep.Emoji expectedEmoji)
-            CompleteStep(CompletedStep.BreakingChange { Selected = true; Disabled = false })
+            CompleteStep(CompletedStep.BreakingChange BreakingChange.Yes)
         ]
 
     [<Property>]
@@ -791,20 +789,8 @@ module ``5_ select breaking change`` =
         |> shouldHave [
             CompleteStep(CompletedStep.Prefix expectedPrefix) // ↩
             CompleteStep(CompletedStep.Emoji expectedEmoji)
-            CompleteStep(CompletedStep.BreakingChange { Selected = false; Disabled = false })
+            CompleteStep(CompletedStep.BreakingChange BreakingChange.No)
         ]
-
-    [<Property>]
-    let ``any input is considered invalid except '!'`` (NonEmptyString invalidInput) (MinInputMatchingFeatOrFixWithEmojis(exactPrefixInput, _, _)) =
-        if invalidInput <> "!" then
-            let actual =
-                initial // ↩
-                |> update (Msg.InputChanged exactPrefixInput)
-                |> update Msg.Enter // Select first emoji
-                |> update (Msg.InputChanged invalidInput)
-
-            actual
-            |> shouldHave [ CurrentStep(Step.BreakingChange({ Selected = false; Disabled = false }, invalidInput = Some invalidInput)) ]
 
     [<Property>]
     let ``prevent selecting the breaking change given neither a feat nor a fix`` (MinInputWithMatchingEmojiWithManyPrefixesAndNoBreakingChange(exactPrefixInput, expectedPrefix, expectedEmojis)) =
@@ -819,7 +805,7 @@ module ``5_ select breaking change`` =
         |> shouldHave [
             CompleteStep(CompletedStep.Prefix expectedPrefix) // ↩
             CompleteStep(CompletedStep.Emoji expectedEmoji)
-            CompleteStep(CompletedStep.BreakingChange { Selected = false; Disabled = true })
+            CompleteStep(CompletedStep.BreakingChange BreakingChange.No)
         ]
 
 module ``6_ determine semantic version change`` =
@@ -884,13 +870,15 @@ module ``7_ confirm selections`` =
         },
         (prefix, emoji, breakingChange)
 
-    [<Property>]
-    let ``any input is considered invalid at this step`` (NonEmptyString invalidInput) (ModelReadyForConfirmation(model, _)) =
-        let actual = model |> update (Msg.InputChanged invalidInput)
-        actual |> shouldHave [ CurrentStep(model.CurrentStep.Step |> Step.setInvalidInput invalidInput) ]
+    // TODO
+    // [<Property>]
+    // let ``any input is considered invalid at this step`` (NonEmptyString invalidInput) (ModelReadyForConfirmation(model, _)) =
+    //     let actual = model |> update (Msg.InputChanged invalidInput)
+    //     actual |> shouldHave [ CurrentStep(model.CurrentStep.Step |> Step.setInvalidInput invalidInput) ]
 
     // TODO
     // [<Property>]
     // let ``confirm all selections by pressing [Enter]`` (ModelReadyForConfirmation(model, (prefix, emoji, breakingChange))) =
     //     let actual = model |> update Msg.Enter
     //     ()
+    ()

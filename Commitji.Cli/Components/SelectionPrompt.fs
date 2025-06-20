@@ -1,11 +1,11 @@
 ﻿module Commitji.Cli.Components.SelectionPrompt
 
 open Commitji.Cli
-open Commitji.Core
+open Commitji.Core.Model
 open Commitji.Core.Model.Search
 open Spectre.Console
 
-type Choice = SearchSegment<SegmentId> list
+type Choice = SearchSegment list
 
 [<Literal>]
 let private HalfPageSize = 5
