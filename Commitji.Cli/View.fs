@@ -9,6 +9,68 @@ open Commitji.Core.Model
 open Commitji.Core.Model.Search
 open Spectre.Console
 
+type StepName =
+    | Prefix
+    | Emoji
+    | BreakingChange
+    | Confirmation
+
+[<RequireQualifiedAccess>]
+module Stepper =
+    [<RequireQualifiedAccess>]
+    module private StepName =
+        let All = Set [ Prefix; Emoji; BreakingChange; Confirmation ]
+
+    let determineSteps (model: Model) =
+        let existingSteps = [
+            for step in List.rev model.CompletedSteps do
+                match step with
+                | CompletedStep.Prefix prefix -> StepName.Prefix, StepStatus.Completed prefix.Code
+                | CompletedStep.Emoji emoji -> StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
+                | CompletedStep.BreakingChange breakingChange -> StepName.BreakingChange, StepStatus.Completed breakingChange.AsString
+
+            match model.CurrentStep.Step with
+            | Step.Prefix _ -> StepName.Prefix, StepStatus.Current
+            | Step.Emoji _ -> StepName.Emoji, StepStatus.Current
+            | Step.BreakingChange _ -> StepName.BreakingChange, StepStatus.Current
+            | Step.Confirmation(semVerChangeOption, _) ->
+                let semVer =
+                    match semVerChangeOption with
+                    | Some change -> $"%A{change} [grey]%s{change |> SemVerChange.code}[/]"
+                    | None -> "None"
+
+                StepName.Confirmation, StepStatus.Completed semVer
+        ]
+
+        let pendingSteps =
+            Set [ for name, _ in existingSteps -> name ] // ↩
+            |> Set.difference StepName.All
+
+        [
+            for name, status in existingSteps do
+                name, status
+
+            for name in pendingSteps do
+                name, StepStatus.Pending
+        ]
+
+    type StepName with
+        member this.Text =
+            match this with
+            | Prefix -> "Prefix"
+            | Emoji -> "Emoji"
+            | BreakingChange -> "Breaking change"
+            | Confirmation -> "Semantic version change"
+
+    let render model =
+        Stepper.render [
+            for name, status in determineSteps model do
+                Stepper.step (name.Text, status)
+        ]
+
+        AnsiConsole.WriteLine ""
+
+
 module private Render =
     let private hintPanel hints =
         let panel =
@@ -35,58 +97,6 @@ module private Render =
     let private instruction text =
         AnsiConsole.MarkupLine($"[bold cyan]?[/] [bold]%s{text}[/]")
 
-    type private StepName =
-        | Prefix
-        | Emoji
-        | BreakingChange
-        | Confirmation
-
-        member this.Text =
-            match this with
-            | Prefix -> "Prefix"
-            | Emoji -> "Emoji"
-            | BreakingChange -> "Breaking change"
-            | Confirmation -> "Semantic version change"
-
-    module private StepName =
-        let All = Set [ Prefix; Emoji; BreakingChange; Confirmation ]
-
-    // TODO: move logic to State and write tests
-    let stepper (model: Model) =
-        let existingSteps = [
-            for step in List.rev model.CompletedSteps do
-                match step with
-                | CompletedStep.Prefix prefix -> StepName.Prefix, StepStatus.Completed prefix.Code
-                | CompletedStep.Emoji emoji -> StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
-                | CompletedStep.BreakingChange breakingChange -> StepName.BreakingChange, StepStatus.Completed breakingChange.AsString
-
-            match model.CurrentStep.Step with
-            | Step.Prefix _ -> StepName.Prefix, StepStatus.Current
-            | Step.Emoji _ -> StepName.Emoji, StepStatus.Current
-            | Step.BreakingChange _ -> StepName.BreakingChange, StepStatus.Current
-            | Step.Confirmation(semVerChangeOption, _) ->
-                let semVer =
-                    match semVerChangeOption with
-                    | Some change -> $"%A{change} [grey]%s{change |> SemVerChange.code}[/]"
-                    | None -> "None"
-
-                StepName.Confirmation, StepStatus.Completed semVer
-        ]
-
-        let pendingSteps =
-            Set [ for name, _ in existingSteps -> name ] // ↩
-            |> Set.difference StepName.All
-
-        Stepper.render [
-            for name, status in existingSteps do
-                Stepper.step (name.Text, status)
-
-            for name in pendingSteps do
-                Stepper.step (name.Text, StepStatus.Pending)
-        ]
-
-        AnsiConsole.WriteLine ""
-
     let currentStep canUndo (model: Model) =
         let input = model.CurrentStep.Input
 
@@ -96,9 +106,9 @@ module private Render =
             instruction "Select a prefix for the commit message:"
 
             SelectionPrompt.render (currentChoiceIndex = prefixes.Index) [
-                    for prefix in prefixes.Items do
-                        prefix.Segments
-                ]
+                for prefix in prefixes.Items do
+                    prefix.Segments
+            ]
 
             AnsiConsole.WriteLine ""
 
@@ -130,9 +140,9 @@ module private Render =
             instruction "Select an emoji for the commit message:"
 
             SelectionPrompt.render (currentChoiceIndex = emojis.Index) [
-                    for emoji in emojis.Items do
-                        emoji.Segments
-                ]
+                for emoji in emojis.Items do
+                    emoji.Segments
+            ]
 
             AnsiConsole.WriteLine ""
 
@@ -160,9 +170,9 @@ module private Render =
             instruction "Indicate if it's a breaking change:"
 
             SelectionPrompt.render (currentChoiceIndex = breakingChanges.Index) [
-                    for breakingChanges in breakingChanges.Items do
-                        breakingChanges.Segments
-                ]
+                for breakingChanges in breakingChanges.Items do
+                    breakingChanges.Segments
+            ]
 
             AnsiConsole.WriteLine ""
 
@@ -187,6 +197,7 @@ module private Render =
             instruction "Confirm your selection"
             AnsiConsole.WriteLine ""
 
+            // TODO RDE: display the emoji and prefix hints
             // TODO RDE: display the commit message
 
             hintPanel [
@@ -210,5 +221,5 @@ let render canUndo model =
     AnsiConsole.Write(title)
     AnsiConsole.WriteLine ""
 
-    Render.stepper model
+    Stepper.render model
     Render.currentStep canUndo model
