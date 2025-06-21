@@ -51,30 +51,40 @@ module private SegmentsConfiguration =
 
 [<RequireQualifiedAccess>]
 module private Segments =
-    let private numberCodeHint (segmentsConfig: SegmentsConfiguration) index code hint =
-        let segment id text =
-            segmentsConfig.States // ↩
-            |> Map.tryFind id
-            |> Option.map (SearchSegment.create id text)
+    let private applyConfig (segmentsConfig: SegmentsConfiguration) segments = [
+        for segmentId, segmentText in segments do
+            match Map.tryFind segmentId segmentsConfig.States with
+            | Some segmentState -> SearchSegment.create segmentId segmentText segmentState
+            | None -> ()
+    ]
 
-        [
-            segment SegmentId.Number $"%i{index + 1}." // ↩
-            segment SegmentId.Code code
-            segment SegmentId.Hint hint
-        ]
-        |> List.choose id
+    let private toNum index = $"%i{index + 1}."
 
     let prefix segmentsConfig index (prefix: Prefix) =
-        numberCodeHint segmentsConfig index prefix.Code prefix.Hint
+        applyConfig segmentsConfig [ // ↩
+            SegmentId.Number, index |> toNum
+            SegmentId.Code, prefix.Code
+            SegmentId.Hint, prefix.Hint
+        ]
 
     let emoji segmentsConfig index (emoji: Emoji) =
-        numberCodeHint segmentsConfig index emoji.Code $"%s{emoji.Char} %s{emoji.Hint}"
+        applyConfig segmentsConfig [ // ↩
+            SegmentId.Number, index |> toNum
+            SegmentId.Code, emoji.Code
+            SegmentId.Hint, emoji.Hint
+        ]
+
+    let breakingChange segmentsConfig _ (breakingChange: BreakingChange) =
+        applyConfig segmentsConfig [ // ↩
+            SegmentId.Code, breakingChange.Code
+        ]
 
 [<AutoOpen>]
 module Extensions =
     type SegmentsConfiguration with
         member this.AsPrefixesSearch = Search(Segments.prefix this)
         member this.AsEmojisSearch = Search(Segments.emoji this)
+        member this.AsBreakingChangesSearch = Search(Segments.breakingChange this)
 
     type Model with
         member this.SegmentsConfiguration = SegmentsConfiguration.ofSearchMode this.SearchMode
@@ -110,6 +120,10 @@ module SelectableList =
                 | i when i >= selectableList.Items.Length -> 0 // Wrap around to the first item
                 | i -> i
     }
+    [<RequireQualifiedAccess>]
+    module BreakingChanges =
+        let searchedBy input (segmentsConfig: SegmentsConfiguration) (breakingChanges: BreakingChange list) =
+            searchedBy input segmentsConfig.AsBreakingChangesSearch breakingChanges
 
     let selectPrevious (selectableList: SelectableList<'t>) = {
         selectableList with
@@ -118,6 +132,8 @@ module SelectableList =
                 | 0 -> selectableList.Items.Length - 1 // Wrap around to the last item
                 | i -> i - 1
     }
+        let searchable (segmentsConfig: SegmentsConfiguration) (breakingChanges: BreakingChange list) =
+            searchable segmentsConfig.AsBreakingChangesSearch breakingChanges
 
 let initWith searchMode =
     let segmentsConfig = SegmentsConfiguration.ofSearchMode searchMode
@@ -148,6 +164,12 @@ let private performSearch (model: Model) =
 
         | Step.Emoji _, None -> // ↩
             Step.Emoji(SelectableList.Emojis.searchable model.SegmentsConfiguration model.AvailableEmojis)
+
+        | Step.BreakingChange _, Some input -> // ↩
+            Step.BreakingChange(SelectableList.BreakingChanges.searchedBy input model.SegmentsConfiguration model.AvailableBreakingChanges)
+
+        | Step.BreakingChange _, None -> // ↩
+            Step.BreakingChange(SelectableList.BreakingChanges.searchable model.SegmentsConfiguration model.AvailableBreakingChanges)
 
         | step, _ -> step
 
