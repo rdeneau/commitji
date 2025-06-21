@@ -314,6 +314,5 @@ let rec update (msg: Msg) (model: Model) =
         |> restartCurrentStep
         |> performSearch
         |> tryCompleteManySteps ExactMatch
-    | ToggleFirstStep, { Step = Step.Prefix _ } -> model |> startEmojiStep Emoji.All
-    | ToggleFirstStep, { Step = Step.Emoji _ } -> model |> startPrefixStep Prefix.All
-    | ToggleFirstStep, _ -> model
+    | ToggleFirstStepToEmoji, { Step = Step.Prefix _ } -> model |> startEmojiStep Emoji.All
+    | ToggleFirstStepToEmoji, _ -> model

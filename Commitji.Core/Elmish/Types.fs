@@ -65,7 +65,7 @@ type Msg =
     | SelectNext
     | SelectPrevious
     | InputChanged of input: string
-    | ToggleFirstStep // TODO: replace input ':' / Echap
+    | ToggleFirstStepToEmoji
     | ToggleSearchMode
 
 // TODO: handle Notices
@@ -73,8 +73,3 @@ type Notice =
     | NoNotice
     | InvalidInput of input: string
     | AllStepsCompleted of commitMessageTemplate: string
-
-[<RequireQualifiedAccess>]
-module CommandChar =
-    [<Literal>]
-    let Emoji = ":"

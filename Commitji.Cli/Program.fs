@@ -54,6 +54,7 @@ type Elmish(init, update, view) =
                 | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'f' -> handle Msg.ToggleSearchMode // 💡 We can use [Alt]+[F] when [Ctrl]+[F] is caught by the terminal
                 | _, ConsoleModifiers.Control, 'c' -> shouldEnd <- true
                 | _, _, Char.MinValue -> () // Ignore other control keys
+                | _, ConsoleModifiers.None, ':' -> handle Msg.ToggleFirstStepToEmoji
                 | _, (ConsoleModifiers.None | ConsoleModifiers.Shift), c -> handle (Msg.InputChanged $"%s{model.CurrentStep.Input}%c{c}")
                 | _ -> ()
 

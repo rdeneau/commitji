@@ -654,7 +654,7 @@ module ``3_ select emoji first`` =
 
         let actual =
             fixture.Model // ↩
-            |> update Msg.ToggleFirstStep
+            |> update Msg.ToggleFirstStepToEmoji
 
         actual
         |> shouldHave [
