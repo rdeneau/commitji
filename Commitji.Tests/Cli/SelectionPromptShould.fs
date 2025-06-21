@@ -50,7 +50,7 @@ module ``handle 8 choices`` =
 
             actual.rows
             =! [
-                [| "[cyan] » [/][cyan]1.[/]"; "[bold green1]A[/]" |]
+                [| "[cyan] » [/][cyan]1.[/]"; "[bold][green1]A[/][/]" |]
                 [| "   2."; "[green4]B[/]" |]
                 [| "   3."; "[green4]C[/]" |]
                 [| "   4."; "[green4]D[/]" |]
@@ -64,7 +64,7 @@ module ``handle 8 choices`` =
         [<Fact>]
         let ``indicate 1st: »1 2 3 4 5 …`` () =
             verify 0 [
-                [| "[cyan] » [/][cyan]1.[/]"; "[bold green1]A[/]" |]
+                [| "[cyan] » [/][cyan]1.[/]"; "[bold][green1]A[/][/]" |]
                 [| "   2."; "[green4]B[/]" |]
                 [| "   3."; "[green4]C[/]" |]
                 [| "   4."; "[green4]D[/]" |]
@@ -76,7 +76,7 @@ module ``handle 8 choices`` =
         let ``indicate 2nd: 1 »2 3 4 5 …`` () =
             verify 1 [
                 [| "   1."; "[green4]A[/]" |]
-                [| "[cyan] » [/][cyan]2.[/]"; "[bold green1]B[/]" |]
+                [| "[cyan] » [/][cyan]2.[/]"; "[bold][green1]B[/][/]" |]
                 [| "   3."; "[green4]C[/]" |]
                 [| "   4."; "[green4]D[/]" |]
                 [| "   5."; "[green4]E[/]" |]
@@ -89,7 +89,7 @@ module ``handle 8 choices`` =
                 [| "   1."; "[green4]A[/]" |]
                 [| "   2."; "[green4]B[/]" |]
                 [| "   3."; "[green4]C[/]" |]
-                [| "[cyan] » [/][cyan]4.[/]"; "[bold green1]D[/]" |]
+                [| "[cyan] » [/][cyan]4.[/]"; "[bold][green1]D[/][/]" |]
                 [| "   5."; "[green4]E[/]" |]
                 [| ""; "[grey]...[/]" |]
             ]
@@ -100,7 +100,7 @@ module ``handle 8 choices`` =
                 [| ""; "[grey]...[/]" |]
                 [| "   3."; "[green4]C[/]" |]
                 [| "   4."; "[green4]D[/]" |]
-                [| "[cyan] » [/][cyan]5.[/]"; "[bold green1]E[/]" |]
+                [| "[cyan] » [/][cyan]5.[/]"; "[bold][green1]E[/][/]" |]
                 [| "   6."; "[green4]F[/]" |]
                 [| ""; "[grey]...[/]" |]
             ]
@@ -111,7 +111,7 @@ module ``handle 8 choices`` =
                 [| ""; "[grey]...[/]" |]
                 [| "   4."; "[green4]D[/]" |]
                 [| "   5."; "[green4]E[/]" |]
-                [| "[cyan] » [/][cyan]6.[/]"; "[bold green1]F[/]" |]
+                [| "[cyan] » [/][cyan]6.[/]"; "[bold][green1]F[/][/]" |]
                 [| "   7."; "[green4]G[/]" |]
                 [| "   8."; "[green4]H[/]" |]
             ]
@@ -124,5 +124,5 @@ module ``handle 8 choices`` =
                 [| "   5."; "[green4]E[/]" |]
                 [| "   6."; "[green4]F[/]" |]
                 [| "   7."; "[green4]G[/]" |]
-                [| "[cyan] » [/][cyan]8.[/]"; "[bold green1]H[/]" |]
+                [| "[cyan] » [/][cyan]8.[/]"; "[bold][green1]H[/][/]" |]
             ]
