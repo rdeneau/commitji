@@ -31,6 +31,11 @@ type CompletedStep =
     | Emoji of selectedEmoji: Emoji // TODO: add the possibility to skip the emoji - it can be Emoji.None "-", matching "none" and linked to any Prefix...
     | BreakingChange of BreakingChange
 
+[<RequireQualifiedAccess>]
+type FirstStep =
+    | Prefix
+    | Emoji
+
 type Model = {
     CurrentStep: CurrentStep
     CompletedSteps: CompletedStep list
@@ -56,11 +61,12 @@ type Model = {
 }
 
 type Msg =
-    | Enter
-    | Down
-    | Up
+    | AcceptSelection
+    | SelectNext
+    | SelectPrevious
     | InputChanged of input: string
-    | ToggleFullTextSearch of isFullText: bool
+    | ToggleFirstStep // TODO: replace input ':' / Echap
+    | ToggleSearchMode
 
 // TODO: handle Notices
 type Notice =

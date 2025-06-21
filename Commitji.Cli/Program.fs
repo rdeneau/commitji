@@ -47,11 +47,11 @@ type Elmish(init, update, view) =
                 match keyInfo.Key, keyInfo.Modifiers, keyInfo.KeyChar with
                 | ConsoleKey.Backspace, _, _
                 | _, ConsoleModifiers.Control, 'z' -> undo ()
-                | ConsoleKey.DownArrow, _, _ -> handle Msg.Down
-                | ConsoleKey.UpArrow, _, _ -> handle Msg.Up
-                | ConsoleKey.Enter, _, _ -> handle Msg.Enter
-                | ConsoleKey.Escape, _, _ -> handle (Msg.ToggleFullTextSearch false)
-                | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'f' -> handle (Msg.ToggleFullTextSearch true) // 💡 We can use [Alt]+[F] when [Ctrl]+[F] is caught by the terminal
+                | ConsoleKey.DownArrow, _, _ -> handle Msg.SelectNext
+                | ConsoleKey.UpArrow, _, _ -> handle Msg.SelectPrevious
+                | ConsoleKey.Enter, _, _ -> handle Msg.AcceptSelection
+                | ConsoleKey.Escape, _, _ -> handle Msg.ToggleSearchMode
+                | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'f' -> handle Msg.ToggleSearchMode // 💡 We can use [Alt]+[F] when [Ctrl]+[F] is caught by the terminal
                 | _, ConsoleModifiers.Control, 'c' -> shouldEnd <- true
                 | _, _, Char.MinValue -> () // Ignore other control keys
                 | _, (ConsoleModifiers.None | ConsoleModifiers.Shift), c -> handle (Msg.InputChanged $"%s{model.CurrentStep.Input}%c{c}")

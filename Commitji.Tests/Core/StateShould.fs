@@ -592,7 +592,7 @@ module ``1_ select prefix first`` =
         let actual =
             model // ↩
             |> update (Msg.InputChanged input)
-            |> update Msg.Enter
+            |> update Msg.AcceptSelection
 
         actual |> shouldHave [ CompletedSteps [ CompletedStep.Prefix expectedPrefix ] ]
 
@@ -627,7 +627,7 @@ module ``2_ select emoji after prefix`` =
         let actual =
             initial // ↩
             |> update (Msg.InputChanged exactPrefixInput)
-            |> update Msg.Enter
+            |> update Msg.AcceptSelection
 
         actual
         |> shouldHave [
@@ -649,12 +649,12 @@ module ``2_ select emoji after prefix`` =
 
 module ``3_ select emoji first`` =
     [<Fact>]
-    let ``switch to emoji selection when typing the character ':'`` () =
+    let ``switch to emoji selection`` () =
         let fixture = Fixture.Initial
 
         let actual =
             fixture.Model // ↩
-            |> update (Msg.InputChanged ":")
+            |> update Msg.ToggleFirstStep
 
         actual
         |> shouldHave [
@@ -683,7 +683,7 @@ module ``3_ select emoji first`` =
         let actual =
             initial // ↩
             |> update (Msg.InputChanged input)
-            |> update Msg.Enter
+            |> update Msg.AcceptSelection
 
         actual |> shouldHave [ CompleteStep(CompletedStep.Emoji expectedSelectedEmoji) ]
 
@@ -717,7 +717,7 @@ module ``4_ select prefix after emoji`` =
         let actual =
             initial // ↩
             |> update (Msg.InputChanged exactEmojiInput)
-            |> update Msg.Enter
+            |> update Msg.AcceptSelection
 
         actual
         |> shouldHave [
@@ -765,7 +765,7 @@ module ``5_ select breaking change`` =
         let actual =
             initial // ↩
             |> update (Msg.InputChanged exactPrefixInput)
-            |> update Msg.Enter // Select first emoji
+            |> update Msg.AcceptSelection // Select first emoji
             |> update (Msg.InputChanged "y") // Confirm breaking change
 
         actual
@@ -782,8 +782,8 @@ module ``5_ select breaking change`` =
         let actual =
             initial // ↩
             |> update (Msg.InputChanged exactPrefixInput)
-            |> update Msg.Enter // Select first emoji
-            |> update Msg.Enter // Confirm no breaking change
+            |> update Msg.AcceptSelection // Select first emoji
+            |> update Msg.AcceptSelection // Confirm no breaking change
 
         actual
         |> shouldHave [
@@ -799,7 +799,7 @@ module ``5_ select breaking change`` =
         let actual =
             initial // ↩
             |> update (Msg.InputChanged exactPrefixInput)
-            |> update Msg.Enter
+            |> update Msg.AcceptSelection
 
         actual
         |> shouldHave [
@@ -817,7 +817,7 @@ module ``6_ determine semantic version change`` =
         let actual =
             initial // ↩
             |> update (Msg.InputChanged exactPrefixInput)
-            |> update Msg.Enter // Select first emoji
+            |> update Msg.AcceptSelection // Select first emoji
             |> update (Msg.InputChanged "y") // Confirm breaking change
 
         actual |> shouldHave [ CurrentStep(Step.Confirmation(Some SemVerChange.Major, invalidInput = None)) ]
@@ -827,8 +827,8 @@ module ``6_ determine semantic version change`` =
         let actual =
             initial // ↩
             |> update (Msg.InputChanged "fi")
-            |> update Msg.Enter // Select first emoji
-            |> update Msg.Enter // Confirm no breaking change
+            |> update Msg.AcceptSelection // Select first emoji
+            |> update Msg.AcceptSelection // Confirm no breaking change
 
         actual |> shouldHave [ CurrentStep(Step.Confirmation(Some SemVerChange.Minor, invalidInput = None)) ]
 
@@ -837,8 +837,8 @@ module ``6_ determine semantic version change`` =
         let actual =
             initial // ↩
             |> update (Msg.InputChanged "fe")
-            |> update Msg.Enter // Select first emoji
-            |> update Msg.Enter // Confirm no breaking change
+            |> update Msg.AcceptSelection // Select first emoji
+            |> update Msg.AcceptSelection // Confirm no breaking change
 
         actual |> shouldHave [ CurrentStep(Step.Confirmation(Some SemVerChange.Patch, invalidInput = None)) ]
 
@@ -847,7 +847,7 @@ module ``6_ determine semantic version change`` =
         let actual =
             initial // ↩
             |> update (Msg.InputChanged exactPrefixInput)
-            |> update Msg.Enter // Select first emoji - No possible breaking change detected
+            |> update Msg.AcceptSelection // Select first emoji - No possible breaking change detected
 
         actual |> shouldHave [ CurrentStep(Step.Confirmation(None, invalidInput = None)) ]
 

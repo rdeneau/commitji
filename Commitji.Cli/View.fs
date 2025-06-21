@@ -71,7 +71,6 @@ module Stepper =
 
         AnsiConsole.WriteLine ""
 
-
 module private Render =
     let private hintPanel hints =
         let panel =
