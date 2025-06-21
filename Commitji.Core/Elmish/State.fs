@@ -89,6 +89,30 @@ module Extensions =
     type Model with
         member this.SegmentsConfiguration = SegmentsConfiguration.ofSearchMode this.SearchMode
 
+    type SearchMode with
+        member this.Toggle() =
+            match this with
+            | SearchMode.Quick -> SearchMode.FullText
+            | SearchMode.FullText -> SearchMode.Quick
+            | SearchMode.Custom _ -> this
+
+    type SelectableList<'t> with
+        member this.SelectNext() = {
+            this with
+                Index =
+                    match this.Index + 1 with
+                    | i when i >= this.Items.Length -> 0 // Wrap around to the first item
+                    | i -> i
+        }
+
+        member this.SelectPrevious() = {
+            this with
+                Index =
+                    match this.Index with
+                    | 0 -> this.Items.Length - 1 // Wrap around to the last item
+                    | i -> i - 1
+        }
+
 [<RequireQualifiedAccess>]
 module SelectableList =
     let searchedBy input (search: Search<'t, _>) items =
@@ -113,25 +137,11 @@ module SelectableList =
         let searchable (segmentsConfig: SegmentsConfiguration) (emojis: Emoji list) =
             searchable segmentsConfig.AsEmojisSearch emojis
 
-    let selectNext (selectableList: SelectableList<'t>) = {
-        selectableList with
-            Index =
-                match selectableList.Index + 1 with
-                | i when i >= selectableList.Items.Length -> 0 // Wrap around to the first item
-                | i -> i
-    }
     [<RequireQualifiedAccess>]
     module BreakingChanges =
         let searchedBy input (segmentsConfig: SegmentsConfiguration) (breakingChanges: BreakingChange list) =
             searchedBy input segmentsConfig.AsBreakingChangesSearch breakingChanges
 
-    let selectPrevious (selectableList: SelectableList<'t>) = {
-        selectableList with
-            Index =
-                match selectableList.Index with
-                | 0 -> selectableList.Items.Length - 1 // Wrap around to the last item
-                | i -> i - 1
-    }
         let searchable (segmentsConfig: SegmentsConfiguration) (breakingChanges: BreakingChange list) =
             searchable segmentsConfig.AsBreakingChangesSearch breakingChanges
 
@@ -262,15 +272,10 @@ module private StepCompletion =
     let private tryCompleteCurrentStep strategy (model: Model) =
         match model.CurrentStep.Step with
         // Steps using the given matching strategy
-        | Step.Prefix _ when model.CurrentStep.Input = CommandChar.Emoji && model.CompletedSteps = [] ->
-            // Switch the start step to Emoji selection
-            { model with AvailableEmojis = Emoji.All; CurrentStep = CurrentStep.start (Step.Emoji(SelectableList.Emojis.searchable model.SegmentsConfiguration Emoji.All)) }
         | Step.Prefix(Match strategy selectedPrefix) -> model |> completePrefixStep selectedPrefix
         | Step.Prefix _ -> model
-
         | Step.Emoji(Match strategy selectedEmoji) -> model |> completeEmojiStep selectedEmoji
         | Step.Emoji _ -> model
-
         | Step.BreakingChange(Match strategy selectedBreakingChange) -> model |> completeBreakingChangeStep selectedBreakingChange
         | Step.BreakingChange _ -> model
 
@@ -292,20 +297,23 @@ module private StepCompletion =
 
 let rec update (msg: Msg) (model: Model) =
     let model = // ↩
-        { model with Model.CurrentStep.Confirmed = (msg = Enter) }
+        { model with Model.CurrentStep.Confirmed = (msg = AcceptSelection) }
 
     match msg, model.CurrentStep with
     | InputChanged input, _ -> { model with Model.CurrentStep.Input = input } |> performSearch |> tryCompleteManySteps ExactMatch
-    | Enter, _ -> model |> tryCompleteManySteps FirstMatchAtIndex
-    | Down, { Step = Step.Prefix prefixes } -> { model with Model.CurrentStep.Step = prefixes |> SelectableList.selectNext |> Step.Prefix }
-    | Up, { Step = Step.Prefix prefixes } -> { model with Model.CurrentStep.Step = prefixes |> SelectableList.selectPrevious |> Step.Prefix }
-    | Down, { Step = Step.Emoji emojis } -> { model with Model.CurrentStep.Step = emojis |> SelectableList.selectNext |> Step.Emoji }
-    | Up, { Step = Step.Emoji emojis } -> { model with Model.CurrentStep.Step = emojis |> SelectableList.selectPrevious |> Step.Emoji }
-    | Down, { Step = Step.BreakingChange breakingChanges } -> { model with Model.CurrentStep.Step = breakingChanges |> SelectableList.selectNext |> Step.BreakingChange }
-    | Up, { Step = Step.BreakingChange breakingChanges } -> { model with Model.CurrentStep.Step = breakingChanges |> SelectableList.selectPrevious |> Step.BreakingChange }
-    | (Down | Up), _ -> model // No change for other steps
-    | ToggleFullTextSearch isFullText, _ ->
-        { model with SearchMode = if isFullText then SearchMode.FullText else SearchMode.Quick }
+    | AcceptSelection, _ -> model |> tryCompleteManySteps FirstMatchAtIndex
+    | SelectNext, { Step = Step.Emoji emojis } -> { model with Model.CurrentStep.Step = Step.Emoji(emojis.SelectNext()) }
+    | SelectNext, { Step = Step.Prefix prefixes } -> { model with Model.CurrentStep.Step = Step.Prefix(prefixes.SelectNext()) }
+    | SelectNext, { Step = Step.BreakingChange breakingChanges } -> { model with Model.CurrentStep.Step = Step.BreakingChange(breakingChanges.SelectNext()) }
+    | SelectPrevious, { Step = Step.Emoji emojis } -> { model with Model.CurrentStep.Step = Step.Emoji(emojis.SelectPrevious()) }
+    | SelectPrevious, { Step = Step.Prefix prefixes } -> { model with Model.CurrentStep.Step = Step.Prefix(prefixes.SelectPrevious()) }
+    | SelectPrevious, { Step = Step.BreakingChange breakingChanges } -> { model with Model.CurrentStep.Step = Step.BreakingChange(breakingChanges.SelectPrevious()) }
+    | (SelectNext | SelectPrevious), _ -> model // No change for other steps
+    | ToggleSearchMode, _ ->
+        { model with SearchMode = model.SearchMode.Toggle() }
         |> restartCurrentStep
         |> performSearch
         |> tryCompleteManySteps ExactMatch
+    | ToggleFirstStep, { Step = Step.Prefix _ } -> model |> startEmojiStep Emoji.All
+    | ToggleFirstStep, { Step = Step.Emoji _ } -> model |> startPrefixStep Prefix.All
+    | ToggleFirstStep, _ -> model
