@@ -1,25 +1,17 @@
 ﻿module Commitji.Cli.View
 
 open System
+open Commitji.Cli.Components
 open Commitji.Cli.Components.SelectionPrompt
 open Commitji.Cli.Components.Stepper
 open Commitji.Core
-open Commitji.Core.Helpers
 open Commitji.Core.Model
 open Commitji.Core.Model.Search
 open Spectre.Console
 
-type StepName =
-    | Prefix
-    | Emoji
-    | BreakingChange
-    | Confirmation
-
 [<RequireQualifiedAccess>]
 module Stepper =
-    [<RequireQualifiedAccess>]
-    module private StepName =
-        let All = Set [ Prefix; Emoji; BreakingChange; Confirmation ]
+    let private allStepNames = Set StepName.All
 
     let determineSteps (model: Model) =
         let existingSteps = [
@@ -45,7 +37,7 @@ module Stepper =
 
         let pendingSteps =
             Set [ for name, _ in existingSteps -> name ] // ↩
-            |> Set.difference StepName.All
+            |> Set.difference allStepNames
 
         [
             for name, status in existingSteps do
@@ -58,10 +50,10 @@ module Stepper =
     type StepName with
         member this.Text =
             match this with
-            | Prefix -> "Prefix"
-            | Emoji -> "Emoji"
-            | BreakingChange -> "Breaking change"
-            | Confirmation -> "Semantic version change"
+            | StepName.Prefix -> "Prefix"
+            | StepName.Emoji -> "Emoji"
+            | StepName.BreakingChange -> "Breaking change"
+            | StepName.Confirmation -> "Semantic version change"
 
     let render model =
         Stepper.render [
@@ -72,16 +64,69 @@ module Stepper =
         AnsiConsole.WriteLine ""
 
 module private Render =
-    let private hintPanel hints =
-        let panel =
-            Panel(
-                text = String.Join(Environment.NewLine, hints |> List.map (fun s -> $"[olive]• %s{s}[/]")), // ↩
-                Border = BoxBorder.Rounded,
-                Expand = true,
-                Header = PanelHeader("💡[bold italic] Hints[/]")
-            )
+    type Example = Example of input: string * result: string
 
-        AnsiConsole.Write(panel)
+    let (==>) input result = Example(input, result)
+
+    type Hint with
+        static member key key text = // ↩
+            Hint(Markup.kbd key, text)
+
+        static member keyStroke keyStroke text =
+            Hint(Markup.keyStroke keyStroke, text)
+
+        static member upDownKeys item =
+            Hint($"""%s{Markup.kbd "↓"}/%s{Markup.kbd "↑"} + %s{Markup.kbd "Enter"}""", $"Select the next/previous %s{item}")
+
+        static member search item operation (Example(input, result)) =
+            Hint($"""%s{Markup.kbd "A"}..%s{Markup.kbd "Z"}""", $"""Start typing %s{item} for %s{Markup.selectedDim operation} [grey](e.g. "%s{input}" to select %s{Markup.selected result})[/]""")
+
+        static member selectByNumber maxNumber item =
+            Hint($"""%s{Markup.kbd "1"}..%s{Markup.kbd $"%i{maxNumber}"}""", $"Select the %s{item} by number")
+
+    let private hintPanel (model: Model) =
+        let hints = [
+            for possibility in model.AvailablePossibilities do
+                match possibility, model.CurrentStep.Step with
+                | Possibility.Search SearchMode.Quick, Step.Emoji _ -> Hint.search "the emoji code" "auto-completion" ("z" ==> "zap ⚡")
+                | Possibility.Search SearchMode.Quick, Step.Prefix _ -> Hint.search "the prefix code" "auto-completion" ("fi" ==> "fix")
+
+                | Possibility.Search SearchMode.FullText, Step.Emoji _ -> Hint.search "a part of the emoji code or description" "full-text search" ("typo" ==> "pencil2 ✏")
+                | Possibility.Search SearchMode.FullText, Step.Prefix _ -> Hint.search "a part of the prefix code or description" "full-text search" ("bug" ==> "fix")
+
+                | Possibility.Search _, Step.BreakingChange _ -> Hint.search "the response" "auto-completion" ("y" ==> "Yes")
+                | Possibility.Search _, Step.Confirmation _ -> ()
+
+                | Possibility.Search(SearchMode.Custom _), _ -> ()
+
+                | Possibility.AcceptSelection, _
+                | Possibility.SelectNext, _ -> () // Hints included with SelectPrevious
+                | Possibility.SelectPrevious, Step.Emoji _ -> Hint.upDownKeys "emoji"
+                | Possibility.SelectPrevious, Step.Prefix _ -> Hint.upDownKeys "prefix"
+                | Possibility.SelectPrevious, Step.BreakingChange _ -> Hint.upDownKeys "response"
+                | Possibility.SelectPrevious, Step.Confirmation _ -> ()
+
+                | Possibility.SearchByNumber, Step.Emoji _ -> Hint.selectByNumber model.AvailableEmojis.Length "emoji"
+                | Possibility.SearchByNumber, Step.Prefix _ -> Hint.selectByNumber model.AvailablePrefixes.Length "prefix"
+                | Possibility.SearchByNumber, Step.BreakingChange _ -> ()
+                | Possibility.SearchByNumber, Step.Confirmation _ -> ()
+
+                | Possibility.ConfirmAllSelection, Step.Prefix _
+                | Possibility.ConfirmAllSelection, Step.Emoji _
+                | Possibility.ConfirmAllSelection, Step.BreakingChange _ -> ()
+                | Possibility.ConfirmAllSelection, Step.Confirmation _ -> Hint.key "Enter" "Confirm the selection ✅" // TODO RDE: copy to clipboard
+
+                | Possibility.ToggleFirstStepToEmoji, _ -> Hint.key ":" "Start by selecting an emoji"
+
+                | Possibility.ToggleSearchMode SearchMode.Quick, _ -> Hint.key "Escape" "Exit the full-text search"
+                | Possibility.ToggleSearchMode SearchMode.FullText, _ -> Hint.keyStroke [ "Alt"; "F" ] "Activate the full-text search 🔎"
+                | Possibility.ToggleSearchMode(SearchMode.Custom _), _ -> ()
+
+                | Possibility.Terminate, _ -> Hint.keyStroke [ "Ctrl"; "C" ] $"""Quit %s{Markup.error "✖"}"""
+                | Possibility.Undo, _ -> Hint($"""%s{Markup.keyStroke [ "Alt"; "Z" ]} %s{Markup.em "or"} %s{Markup.kbd "Backspace"}""", "Undo the last action ⏪") // TODO: indicate the last action (historizing the MSg)
+        ]
+
+        Panel.hints hints
 
     let private selectionPanel selection =
         let panel =
@@ -97,10 +142,7 @@ module private Render =
     let private instruction text =
         AnsiConsole.MarkupLine($"[bold cyan]?[/] [bold]%s{text}[/]")
 
-    let currentStep canUndo (model: Model) =
-        let input = model.CurrentStep.Input
-
-        // TODO: remove duplication between steps -> create a common component?
+    let currentStep (model: Model) =
         match model.CurrentStep.Step with
         | Step.Prefix prefixes ->
             instruction "Select a prefix for the commit message:"
@@ -111,30 +153,7 @@ module private Render =
             ]
 
             AnsiConsole.WriteLine ""
-
-            hintPanel [
-                match model.SearchMode with
-                | SearchMode.Quick ->
-                    $"""[italic]Quick search:[/] Start typing the prefix code for auto-completion [grey](e.g. "fi" to select %s{Markup.selected "fix"})[/]"""
-                    $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "F"} (or %s{Markup.kbd "Alt"}+%s{Markup.kbd "F"}) to activate the full-text search"""
-                | SearchMode.FullText ->
-                    $"""[italic]Full-text search:[/] Start typing a part of the prefix code or hint to search [grey](e.g. "bug" to select %s{Markup.selected "fix"})[/]"""
-                    $"""Press %s{Markup.kbd "Escape"} to return to the quick search"""
-                | SearchMode.Custom _ -> ()
-
-                "Or type the prefix number"
-
-                $"""Press %s{Markup.kbd "Up"}/%s{Markup.kbd "Down"} then %s{Markup.kbd "Enter"} to select the highlighted prefix"""
-
-                match model.CompletedSteps, input with
-                | [], String.IsEmpty -> $"""Press %s{Markup.kbd ":"} to start by selecting an emoji"""
-                | _ -> ()
-
-                if canUndo then
-                    $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "Z"} or %s{Markup.kbd "Backspace"} to undo the last action"""
-
-                $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "C"} to exit"""
-            ]
+            hintPanel model
 
         | Step.Emoji emojis ->
             instruction "Select an emoji for the commit message:"
@@ -145,26 +164,7 @@ module private Render =
             ]
 
             AnsiConsole.WriteLine ""
-
-            hintPanel [
-                match model.SearchMode with
-                | SearchMode.Quick ->
-                    $"""[italic]Quick search:[/] Start typing the emoji code for auto-completion [grey](e.g. "z" to select %s{Markup.selected "⚡"} [[zap]])[/]"""
-                    $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "F"} (or %s{Markup.kbd "Alt"}+%s{Markup.kbd "F"}) to activate the full-text search"""
-                | SearchMode.FullText ->
-                    $"""[italic]Full-text search:[/] Start typing a part of the emoji code or hint to search [grey](e.g. "bug" to select %s{Markup.selected "fix"})[/]"""
-                    $"""Press %s{Markup.kbd "Escape"} to return to the quick search"""
-                | SearchMode.Custom _ -> ()
-
-                "Or type the emoji number"
-
-                $"""Press %s{Markup.kbd "Up"}/%s{Markup.kbd "Down"} then %s{Markup.kbd "Enter"} to select the highlighted emoji"""
-
-                if canUndo then
-                    $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "Z"} or %s{Markup.kbd "Backspace"} to undo the last action"""
-
-                $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "C"} to exit"""
-            ]
+            hintPanel model
 
         | Step.BreakingChange breakingChanges ->
             instruction "Indicate if it's a breaking change:"
@@ -175,36 +175,15 @@ module private Render =
             ]
 
             AnsiConsole.WriteLine ""
-
-            hintPanel [
-                if input.Length = 0 then
-                    $"""Start typing the response for auto-completion [grey](e.g. "y" to select %s{Markup.selected "Yes"})[/]"""
-
-                $"""Or press %s{Markup.kbd "Up"}/%s{Markup.kbd "Down"} then %s{Markup.kbd "Enter"} to select the response"""
-
-                match model.CompletedSteps with
-                | [] -> ()
-                | _ when input.Length = 0 -> $"""Press %s{Markup.kbd "Backspace"} to restart the previous step"""
-                | _ -> ()
-
-                if canUndo then
-                    $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "Z"} or %s{Markup.kbd "Backspace"} to undo the last action"""
-
-                $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "C"} to exit"""
-            ]
+            hintPanel model
 
         | Step.Confirmation(_, invalidInput) ->
             instruction "Confirm your selection"
             AnsiConsole.WriteLine ""
 
-            // TODO RDE: display the emoji and prefix hints
             // TODO RDE: display the commit message
 
-            hintPanel [
-                $"""Press %s{Markup.kbd "Backspace"} to restart the previous step"""
-                $"""Press %s{Markup.kbd "Enter"} to confirm""" // TODO RDE: copy to clipboard
-                $"""Press %s{Markup.kbd "Ctrl"}+%s{Markup.kbd "C"} to exit"""
-            ]
+            hintPanel model
 
             // TODO: display for all steps when using the Notice, in a panel
             match invalidInput with
@@ -212,9 +191,26 @@ module private Render =
             | None -> ()
 
         AnsiConsole.WriteLine ""
-        AnsiConsole.Write input
 
-let render canUndo model =
+let private handleKeyPress (keyInfo: ConsoleKeyInfo) model dispatch =
+    match keyInfo.Key, keyInfo.Modifiers, keyInfo.KeyChar with
+    | ConsoleKey.Backspace, _, _
+    | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'z' -> dispatch Undo
+    | ConsoleKey.DownArrow, _, _ -> dispatch SelectNext
+    | ConsoleKey.UpArrow, _, _ -> dispatch SelectPrevious
+    | ConsoleKey.Enter, _, _ ->
+        match model.CurrentStep.Step with
+        | Step.Confirmation _ -> dispatch ConfirmAllSelection
+        | _ -> dispatch AcceptSelection
+    | ConsoleKey.Escape, _, _ -> dispatch ToggleSearchMode
+    | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'f' -> dispatch ToggleSearchMode // 💡 We can use [Alt]+[F] when [Ctrl]+[F] is caught by the terminal // TODO: debug Ctrl+F not working (terminating!?)
+    | _, ConsoleModifiers.Control, 'c' -> dispatch Terminate
+    | _, _, Char.MinValue -> () // Ignore other control keys
+    | _, ConsoleModifiers.None, ':' -> dispatch ToggleFirstStepToEmoji
+    | _, (ConsoleModifiers.None | ConsoleModifiers.Shift), c -> dispatch (InputChanged $"%s{model.CurrentStep.Input}%c{c}")
+    | _ -> ()
+
+let render model dispatch =
     AnsiConsole.Clear()
 
     let title = Rule("[bold orange1]Commit[/][yellow italic]ji[/]").Centered()
@@ -222,4 +218,12 @@ let render canUndo model =
     AnsiConsole.WriteLine ""
 
     Stepper.render model
-    Render.currentStep canUndo model
+    Render.currentStep model
+
+    AnsiConsole.Markup $"""%s{Markup.current "» "}Input: """
+    AnsiConsole.Write model.CurrentStep.Input
+    let keyInfo = AnsiConsole.Console.Input.ReadKey(intercept = true)
+
+    match Option.ofNullable keyInfo with
+    | Some keyInfo -> handleKeyPress keyInfo model dispatch
+    | None -> ()

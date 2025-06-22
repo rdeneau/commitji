@@ -16,11 +16,7 @@ let private (|Match|_|) strategy ({ Items = items; Index = index }: SelectableLi
 
 [<RequireQualifiedAccess>]
 module private CurrentStep =
-    let start (step: Step) = {
-        Step = step
-        Input = ""
-        Confirmed = false
-    }
+    let start (step: Step) = { Step = step; Input = "" }
 
     let setInvalidInput _input (currentStep: CurrentStep) = currentStep // TODO: to implement with a Notice
 
@@ -70,7 +66,7 @@ module private Segments =
     let emoji segmentsConfig index (emoji: Emoji) =
         applyConfig segmentsConfig [ // ↩
             SegmentId.Number, index |> toNum
-            SegmentId.Code, emoji.Code
+            SegmentId.Code, $"%s{emoji.Code} %s{emoji.Char}"
             SegmentId.Hint, emoji.Hint
         ]
 
@@ -145,18 +141,80 @@ module SelectableList =
         let searchable (segmentsConfig: SegmentsConfiguration) (breakingChanges: BreakingChange list) =
             searchable segmentsConfig.AsBreakingChangesSearch breakingChanges
 
-let initWith searchMode =
-    let segmentsConfig = SegmentsConfiguration.ofSearchMode searchMode
+[<AutoOpen>]
+module Possibilities =
+    let checkMessageAdequacyWithCurrentPossibilities (msg: Msg) (model: Model) =
+        let acceptedPossibilities =
+            match msg with
+            | AcceptSelection -> [ Possibility.AcceptSelection ]
+            | ConfirmAllSelection -> [ Possibility.ConfirmAllSelection ]
+            | SelectNext -> [ Possibility.SelectNext ]
+            | SelectPrevious -> [ Possibility.SelectPrevious ]
+            | InputChanged _ -> [ Possibility.Search model.SearchMode; Possibility.SearchByNumber ]
+            | ToggleSearchMode -> [ Possibility.ToggleSearchMode(model.SearchMode.Toggle()) ]
+            | ToggleFirstStepToEmoji -> [ Possibility.ToggleFirstStepToEmoji ]
+            | Terminate -> [ Possibility.Terminate ]
+            | Undo -> [ Possibility.Undo ]
 
+        acceptedPossibilities |> List.exists (fun p -> model.AvailablePossibilities |> List.contains p)
+
+    let determinePossibilities (model: Model) =
+        let stepName, stepType =
+            match model.CurrentStep.Step with
+            | Step.Prefix prefixes -> StepName.Prefix, StepType.Selection prefixes.Items.Length
+            | Step.Emoji emojis -> StepName.Emoji, StepType.Selection emojis.Items.Length
+            | Step.BreakingChange breakingChanges -> StepName.BreakingChange, StepType.Selection breakingChanges.Items.Length
+            | Step.Confirmation _ -> StepName.Confirmation, StepType.Confirmation
+
+        [
+            match stepName with
+            | StepName.Prefix
+            | StepName.Emoji ->
+                Possibility.Search model.SearchMode
+                Possibility.SearchByNumber
+                Possibility.ToggleSearchMode(model.SearchMode.Toggle())
+            | StepName.BreakingChange -> // ↩
+                Possibility.Search model.SearchMode
+            | StepName.Confirmation -> // ↩
+                Possibility.ConfirmAllSelection
+
+            match stepType with
+            | StepType.Selection 1 -> // ↩
+                Possibility.AcceptSelection // This possibility should not be exercised because of the auto-completion.
+            | StepType.Selection n when n > 1 ->
+                Possibility.AcceptSelection
+                Possibility.SelectNext
+                Possibility.SelectPrevious
+            | StepType.Selection _
+            | StepType.Confirmation -> ()
+
+            if stepName = StepName.Prefix && model.CurrentStep.Input.Length = 0 && model.CompletedSteps.IsEmpty then
+                Possibility.ToggleFirstStepToEmoji
+
+            if not model.History.IsEmpty then
+                Possibility.Undo
+
+            Possibility.Terminate
+        ]
+
+    let definePossibilities (model: Model) = {
+        model with // ↩
+            AvailablePossibilities = determinePossibilities model
+    }
+
+let initWith searchMode =
     {
-        CurrentStep = CurrentStep.start (Step.Prefix(SelectableList.Prefixes.searchable segmentsConfig Prefix.All))
+        CurrentStep = CurrentStep.start (Step.Prefix(SelectableList.Prefixes.searchable (SegmentsConfiguration.ofSearchMode searchMode) Prefix.All))
         CompletedSteps = []
         AvailablePrefixes = Prefix.All
         AvailableEmojis = Emoji.All
         AvailableBreakingChanges = BreakingChange.All
+        AvailablePossibilities = []
         SearchMode = searchMode
         PreviousFullCompletion = None
+        History = []
     }
+    |> definePossibilities
 
 let init () = initWith SearchMode.Quick
 
@@ -199,13 +257,10 @@ module private StartStep =
             CurrentStep = CurrentStep.start (Step.Prefix(SelectableList.Prefixes.searchable model.SegmentsConfiguration selectablePrefixes))
     }
 
-    let startBreakingChangeStep selectedEmoji selectedPrefix (model: Model) =
-        let tbd = BreakingChange.determine selectedEmoji selectedPrefix
-
-        {
-            model with // ↩
-                CurrentStep = CurrentStep.start (Step.BreakingChange(tbd))
-        }
+    let startBreakingChangeStep selectedEmoji selectedPrefix (model: Model) = {
+        model with // ↩
+            CurrentStep = CurrentStep.start (Step.BreakingChange(BreakingChange.determine selectedEmoji selectedPrefix))
+    }
 
     let startConfirmationStep breakingChange prefix (model: Model) = {
         model with // ↩
@@ -266,9 +321,6 @@ module private StepCompletion =
         |> startConfirmationStep breakingChange prefix
         |> addCompletedStep (CompletedStep.BreakingChange breakingChange)
 
-    // TODO: Notice.AllStepsCompleted
-    let private noticeAllStepsCompleted (model: Model) = model
-
     let private tryCompleteCurrentStep strategy (model: Model) =
         match model.CurrentStep.Step with
         // Steps using the given matching strategy
@@ -279,11 +331,9 @@ module private StepCompletion =
         | Step.BreakingChange(Match strategy selectedBreakingChange) -> model |> completeBreakingChangeStep selectedBreakingChange
         | Step.BreakingChange _ -> model
 
-        // Steps using the model.CurrentStep.Confirmed
+        // The final step cannot be auto-completed, but it can be confirmed, with `Msg.ConfirmAllSelection`
         | Step.Confirmation _ when model.CurrentStep.Input <> "" -> // Invalid input -> reset
             { model with CurrentStep = model.CurrentStep |> CurrentStep.setInvalidInput model.CurrentStep.Input }
-        | Step.Confirmation _ when model.CurrentStep.Confirmed -> // ↩
-            model |> noticeAllStepsCompleted
         | Step.Confirmation _ -> model
 
     [<TailCall>]
@@ -295,10 +345,10 @@ module private StepCompletion =
         else
             tryCompleteManySteps ExactMatch completedModel // Try complete more steps in a row, but only for exact matches.
 
-let rec update (msg: Msg) (model: Model) =
-    let model = // ↩
-        { model with Model.CurrentStep.Confirmed = (msg = AcceptSelection) }
+    // TODO: Notice.AllStepsCompleted
+    let noticeAllStepsCompleted (model: Model) = model
 
+let private handleMessage (msg: Msg) (model: Model) =
     match msg, model.CurrentStep with
     | InputChanged input, _ -> { model with Model.CurrentStep.Input = input } |> performSearch |> tryCompleteManySteps ExactMatch
     | AcceptSelection, _ -> model |> tryCompleteManySteps FirstMatchAtIndex
@@ -316,3 +366,20 @@ let rec update (msg: Msg) (model: Model) =
         |> tryCompleteManySteps ExactMatch
     | ToggleFirstStepToEmoji, { Step = Step.Prefix _ } -> model |> startEmojiStep Emoji.All
     | ToggleFirstStepToEmoji, _ -> model
+    | ConfirmAllSelection, { Step = Step.Confirmation _ } -> model |> noticeAllStepsCompleted
+    | ConfirmAllSelection, _ -> model
+    | Terminate, _ -> model // Termination is handled by the Elmish program
+    | Undo, _ -> model // Undo msg is handled before: in the `update` function
+
+let update (msg: Msg) (model: Model) =
+    if not (checkMessageAdequacyWithCurrentPossibilities msg model) then
+        model
+    else
+        match msg, model.History with
+        | Undo, previous :: _ -> previous
+        | Undo, [] -> model
+        | _ ->
+            // Add the current model to the history before processing the message
+            { model with History = model :: model.History } // ↩
+            |> handleMessage msg
+            |> definePossibilities

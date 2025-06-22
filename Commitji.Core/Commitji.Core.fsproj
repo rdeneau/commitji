@@ -15,6 +15,7 @@
     <Compile Include="Model\SelectableList.fs" />
     <Compile Include="Model\BreakingChange.fs" />
     <Compile Include="Model\SemVerChange.fs" />
+    <Compile Include="Model\Step.fs" />
     <Compile Include="Elmish\Types.fs" />
     <Compile Include="Elmish\State.fs" />
   </ItemGroup>
