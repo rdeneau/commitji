@@ -20,19 +20,13 @@ module Stepper =
                 | CompletedStep.Prefix prefix -> StepName.Prefix, StepStatus.Completed prefix.Item.Code
                 | CompletedStep.Emoji emoji -> StepName.Emoji, StepStatus.Completed $"%s{emoji.Item.Code} %s{emoji.Item.Char}"
                 | CompletedStep.BreakingChange breakingChange -> StepName.BreakingChange, StepStatus.Completed breakingChange.Item.Code
+                | CompletedStep.SemVerChange _ -> ()
 
             match model.CurrentStep.Step with
             | Step.Prefix _ -> StepName.Prefix, StepStatus.Current
             | Step.Emoji _ -> StepName.Emoji, StepStatus.Current
             | Step.BreakingChange _ -> StepName.BreakingChange, StepStatus.Current
-            | Step.Confirmation(semVerChangeOption, _) ->
-                // ⚠️ The step is directly Completed to indicate the semantic version change.
-                let semVer =
-                    match semVerChangeOption with
-                    | Some change -> change.Code
-                    | None -> "None"
-
-                StepName.Confirmation, StepStatus.Completed semVer
+            | Step.Confirmation -> StepName.Confirmation, StepStatus.Current
         ]
 
         let pendingSteps =
@@ -53,7 +47,8 @@ module Stepper =
             | StepName.Prefix -> "Prefix"
             | StepName.Emoji -> "Emoji"
             | StepName.BreakingChange -> "Breaking change"
-            | StepName.Confirmation -> "Semantic version change"
+            | StepName.SemVerChange -> "Semantic version change"
+            | StepName.Confirmation -> "Confirmation"
 
     let render model =
         Stepper.render [
@@ -95,7 +90,7 @@ module private HintPanel =
                 | Possibility.Search SearchMode.FullText, Step.Prefix _ -> Hint.search "a part of the prefix code or description" "full-text search" ("bug" ==> "fix")
 
                 | Possibility.Search _, Step.BreakingChange _ -> Hint.search "the response" "auto-completion" ("y" ==> "Yes")
-                | Possibility.Search _, Step.Confirmation _ -> ()
+                | Possibility.Search _, Step.Confirmation -> ()
 
                 | Possibility.Search(SearchMode.Custom _), _ -> ()
 
@@ -104,17 +99,17 @@ module private HintPanel =
                 | Possibility.SelectPrevious, Step.Emoji _ -> Hint.upDownKeys "emoji"
                 | Possibility.SelectPrevious, Step.Prefix _ -> Hint.upDownKeys "prefix"
                 | Possibility.SelectPrevious, Step.BreakingChange _ -> Hint.upDownKeys "response"
-                | Possibility.SelectPrevious, Step.Confirmation _ -> ()
+                | Possibility.SelectPrevious, Step.Confirmation -> ()
 
                 | Possibility.SearchByNumber, Step.Emoji _ -> Hint.selectByNumber model.AvailableEmojis.Length "emoji"
                 | Possibility.SearchByNumber, Step.Prefix _ -> Hint.selectByNumber model.AvailablePrefixes.Length "prefix"
                 | Possibility.SearchByNumber, Step.BreakingChange _ -> ()
-                | Possibility.SearchByNumber, Step.Confirmation _ -> ()
+                | Possibility.SearchByNumber, Step.Confirmation -> ()
 
                 | Possibility.ConfirmAllSelection, Step.Prefix _
                 | Possibility.ConfirmAllSelection, Step.Emoji _
                 | Possibility.ConfirmAllSelection, Step.BreakingChange _ -> ()
-                | Possibility.ConfirmAllSelection, Step.Confirmation _ -> Hint.key "Enter" "Confirm the selection ✅" // TODO RDE: copy to clipboard
+                | Possibility.ConfirmAllSelection, Step.Confirmation -> Hint.key "Enter" "Confirm the commit message template and copy it to the clipboard ✅" // TODO RDE: copy to clipboard
 
                 | Possibility.ToggleFirstStepToEmoji, _ -> Hint.key ":" "Start by selecting an emoji"
 
@@ -128,14 +123,47 @@ module private HintPanel =
 
 module private Instruction =
     let private render text =
-        AnsiConsole.MarkupLine($"[bold cyan]?[/] [bold]%s{text}[/]")
+        AnsiConsole.MarkupLine(Markup.strong (Markup.current "? ") + text)
 
-    let prefix () = render "Select a prefix for the commit message:"
-    let emoji () = render "Select an emoji for the commit message:"
-    let breakingChange () = render "Indicate if it's a breaking change:"
-    let confirmation () = render "Confirm your selection"
+    let prefix () =
+        render "Select a prefix for the commit message:"
+
+    let emoji () =
+        render "Select an emoji for the commit message:"
+
+    let breakingChange () =
+        render "Indicate if it's a breaking change:"
+
+    let semVerChange () = // ↩
+        render "Semantic version change:"
+
+    let confirmation () = // ↩
+        render "Confirm the selection:"
 
 module private Render =
+    [<RequireQualifiedAccess>]
+    module private SemVerChange =
+        let private __ = "_"
+        let private up = Markup.selectedDim "+1"
+        let private dot = Markup.inactive "."
+
+        let segments semVerChange = [
+            match semVerChange with
+            | None -> // ↩
+                SearchSegment.NotSearchable(SegmentId.Code, "None")
+
+            | Some(semVerChange: SemVerChange) -> // ↩
+                SearchSegment.NotSearchable(SegmentId.Code, semVerChange.Code)
+
+                let format =
+                    match semVerChange with
+                    | Major -> up + dot + __ + dot + __
+                    | Minor -> __ + dot + up + dot + __
+                    | Patch -> __ + dot + __ + dot + up
+
+                SearchSegment.NotSearchable(SegmentId.Hint, format)
+        ]
+
     let completedSteps (model: Model) =
         for step in List.rev model.CompletedSteps do
             match step with
@@ -143,13 +171,20 @@ module private Render =
                 Instruction.prefix ()
                 SelectionPrompt.render (currentChoiceIndex = 0) [ prefix.Segments ]
                 AnsiConsole.WriteLine()
+
             | CompletedStep.Emoji emoji ->
                 Instruction.emoji ()
                 SelectionPrompt.render (currentChoiceIndex = 0) [ emoji.Segments ]
                 AnsiConsole.WriteLine()
+
             | CompletedStep.BreakingChange breakingChange ->
                 Instruction.breakingChange ()
                 SelectionPrompt.render (currentChoiceIndex = 0) [ breakingChange.Segments ]
+                AnsiConsole.WriteLine()
+
+            | CompletedStep.SemVerChange semVerChange ->
+                Instruction.semVerChange ()
+                SelectionPrompt.render (currentChoiceIndex = 0) [ SemVerChange.segments semVerChange ]
                 AnsiConsole.WriteLine()
 
     let private errors (model: Model) =
@@ -162,14 +197,16 @@ module private Render =
                 for error in errors do
                     match error with
                     | Error.NoItems stepName ->
-                        let itemName =
-                            match stepName with
-                            | StepName.Prefix -> "prefixes"
-                            | StepName.Emoji -> "emojis"
-                            | StepName.BreakingChange -> "breaking changes"
-                            | StepName.Confirmation -> "semantic version changes"
+                        let noItemFound itemName = $"No {itemName} found."
 
-                        $"No {itemName} found."
+                        match stepName with
+                        | StepName.Prefix -> noItemFound "prefixes"
+                        | StepName.Emoji -> noItemFound "emojis"
+                        | StepName.BreakingChange -> noItemFound "breaking changes"
+                        | StepName.SemVerChange
+                        | StepName.Confirmation -> ()
+
+                    | Error.InputNotSupported input -> $"Input not supported: %s{input}."
             ]
 
     let currentStep (model: Model) =
@@ -195,18 +232,11 @@ module private Render =
             AnsiConsole.WriteLine()
             HintPanel.render model
 
-        | Step.Confirmation(_, invalidInput) ->
+        | Step.Confirmation ->
             Instruction.confirmation ()
             AnsiConsole.WriteLine()
-
             // TODO RDE: display the commit message
-
             HintPanel.render model
-
-            // TODO: display for all steps when using the Notice, in a panel
-            match invalidInput with
-            | Some input -> AnsiConsole.MarkupLine($"[red]Invalid input: {input}[/]")
-            | None -> ()
 
         AnsiConsole.WriteLine()
 
@@ -218,7 +248,7 @@ let private handleKeyPress (keyInfo: ConsoleKeyInfo) model dispatch =
     | ConsoleKey.UpArrow, _, _ -> dispatch SelectPrevious
     | ConsoleKey.Enter, _, _ ->
         match model.CurrentStep.Step with
-        | Step.Confirmation _ -> dispatch ConfirmAllSelection
+        | Step.Confirmation -> dispatch ConfirmAllSelection
         | _ -> dispatch AcceptSelection
     | ConsoleKey.Escape, _, _ -> dispatch ToggleSearchMode
     | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'f' -> dispatch ToggleSearchMode // 💡 We can use [Alt]+[F] when [Ctrl]+[F] is caught by the terminal
@@ -239,8 +269,11 @@ let render model dispatch =
     Render.completedSteps model
     Render.currentStep model
 
-    AnsiConsole.Markup $"""%s{Markup.current "» "}Input: """
+    AnsiConsole.Markup(Markup.current "» ")
+    AnsiConsole.Markup "Input: "
+
     AnsiConsole.Write model.CurrentStep.Input
+
     let keyInfo = AnsiConsole.Console.Input.ReadKey(intercept = true)
 
     match Option.ofNullable keyInfo with

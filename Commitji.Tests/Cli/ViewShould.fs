@@ -1,6 +1,5 @@
 ﻿module Commitji.Tests.Cli.ViewShould
 
-open Commitji.Cli.Components.Stepper
 open Commitji.Cli.View
 open Commitji.Core.Model
 open Commitji.Tests.FsCheckExtensions
@@ -22,6 +21,7 @@ module ``determine steps in the stepper`` =
                 StepName.Prefix, StepStatus.Current
                 StepName.Emoji, StepStatus.Pending
                 StepName.BreakingChange, StepStatus.Pending
+                StepName.SemVerChange, StepStatus.Pending
                 StepName.Confirmation, StepStatus.Pending
             ]
 
@@ -34,6 +34,7 @@ module ``determine steps in the stepper`` =
                 StepName.Prefix, StepStatus.Completed prefix.Code
                 StepName.Emoji, StepStatus.Current
                 StepName.BreakingChange, StepStatus.Pending
+                StepName.SemVerChange, StepStatus.Pending
                 StepName.Confirmation, StepStatus.Pending
             ]
 
@@ -50,7 +51,7 @@ module ``determine steps in the stepper`` =
             ]
 
         [<Property(MaxTest = 1000)>]
-        let ``4_ Prefix✔️ > Emoji✔️ > BreakingChange✔️ > Confirmation✔️`` (PrefixEmojiBreakingChangeSelected(prefix, emoji, breakingChange, semVer, model)) =
+        let ``4_ Prefix✔️ > Emoji✔️ > BreakingChange✔️ > [Confirmation]`` (PrefixEmojiBreakingChangeSelected(prefix, emoji, breakingChange, model)) =
             let actual = Stepper.determineSteps model
 
             actual
@@ -58,7 +59,7 @@ module ``determine steps in the stepper`` =
                 StepName.Prefix, StepStatus.Completed prefix.Code
                 StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
                 StepName.BreakingChange, StepStatus.Completed breakingChange.Code
-                StepName.Confirmation, StepStatus.Completed(semVer |> Option.map _.Code |> Option.defaultValue "None")
+                StepName.Confirmation, StepStatus.Current
             ]
 
     [<Properties(Arbitrary = [| typeof<EmojiFirst.Arbitraries> |])>]
@@ -102,7 +103,7 @@ module ``determine steps in the stepper`` =
             ]
 
         [<Property(MaxTest = 1000)>]
-        let ``4_ Emoji✔️ > Prefix✔️ > BreakingChange✔️ > Confirmation✔️`` (EmojiPrefixBreakingChangeSelected(emoji, prefix, breakingChange, semVer, model)) =
+        let ``4_ Emoji✔️ > Prefix✔️ > BreakingChange✔️ > [Confirmation]`` (EmojiPrefixBreakingChangeSelected(emoji, prefix, breakingChange, model)) =
             let actual = Stepper.determineSteps model
 
             actual
@@ -110,5 +111,5 @@ module ``determine steps in the stepper`` =
                 StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
                 StepName.Prefix, StepStatus.Completed prefix.Code
                 StepName.BreakingChange, StepStatus.Completed breakingChange.Code
-                StepName.Confirmation, StepStatus.Completed(semVer |> Option.map _.Code |> Option.defaultValue "None")
+                StepName.Confirmation, StepStatus.Current
             ]

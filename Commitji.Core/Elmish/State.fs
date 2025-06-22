@@ -18,8 +18,6 @@ let private (|Match|_|) strategy ({ Items = items; Index = index }: SelectableLi
 module private CurrentStep =
     let start (step: Step) = { Step = step; Input = "" }
 
-    let setInvalidInput _input (currentStep: CurrentStep) = currentStep // TODO: to implement with a Notice
-
 [<RequireQualifiedAccess>]
 module private SegmentsConfiguration =
     let private segmentsConfiguration states : SegmentsConfiguration = // ↩
@@ -115,14 +113,14 @@ module Extensions =
             | Step.Prefix _ -> StepName.Prefix
             | Step.Emoji _ -> StepName.Emoji
             | Step.BreakingChange _ -> StepName.BreakingChange
-            | Step.Confirmation _ -> StepName.Confirmation
+            | Step.Confirmation -> StepName.Confirmation
 
         member this.Type =
             match this with
             | Step.Prefix prefixes -> StepType.Selection prefixes.Items.Length
             | Step.Emoji emojis -> StepType.Selection emojis.Items.Length
             | Step.BreakingChange breakingChanges -> StepType.Selection breakingChanges.Items.Length
-            | Step.Confirmation _ -> StepType.Confirmation
+            | Step.Confirmation -> StepType.Confirmation
 
 [<RequireQualifiedAccess>]
 module SelectableList =
@@ -190,6 +188,8 @@ module Possibilities =
 
             | StepName.BreakingChange -> // ↩
                 Possibility.Search model.SearchMode
+
+            | StepName.SemVerChange -> ()
 
             | StepName.Confirmation -> // ↩
                 Possibility.ConfirmAllSelection
@@ -271,46 +271,42 @@ let private performSearch (model: Model) =
     | Step.BreakingChange _, None -> // ↩
         updateModelStep Step.BreakingChange (SelectableList.BreakingChanges.searchable model.AvailableBreakingChanges)
 
-    | _ -> model
+    | Step.Confirmation, Some input -> // ↩
+        { model with Model.CurrentStep.Input = ""; Model.Errors = Error.InputNotSupported input.Value :: model.Errors }
+
+    | Step.Confirmation, None -> model
 
 [<AutoOpen>]
 module private StartStep =
-    let startEmojiStep selectableEmojis (model: Model) = {
-        model with // ↩
-            AvailableEmojis = selectableEmojis
-            CurrentStep = CurrentStep.start (Step.Emoji(SelectableList.Emojis.searchable selectableEmojis model.SegmentsConfiguration))
-    }
+    let addCompletedStep completedStep (model: Model) = // ↩
+        { model with CompletedSteps = completedStep :: model.CompletedSteps }
 
-    let startPrefixStep selectablePrefixes (model: Model) = {
-        model with // ↩
-            AvailablePrefixes = selectablePrefixes
-            CurrentStep = CurrentStep.start (Step.Prefix(SelectableList.Prefixes.searchable selectablePrefixes model.SegmentsConfiguration))
-    }
+    let private startStep step (model: Model) = // ↩
+        { model with CurrentStep = CurrentStep.start step }
 
-    let startBreakingChangeStep selectedEmoji selectedPrefix (model: Model) = {
-        model with // ↩
-            CurrentStep = CurrentStep.start (Step.BreakingChange(BreakingChange.determine selectedEmoji selectedPrefix))
-    }
+    let startEmojiStep selectableEmojis (model: Model) =
+        { model with AvailableEmojis = selectableEmojis }
+        |> startStep (Step.Emoji(SelectableList.Emojis.searchable selectableEmojis model.SegmentsConfiguration))
 
-    let startConfirmationStep breakingChange prefix (model: Model) = {
-        model with // ↩
-            CurrentStep = CurrentStep.start (Step.Confirmation(SemVerChange.determine breakingChange prefix, invalidInput = None))
-    }
+    let startPrefixStep selectablePrefixes (model: Model) =
+        { model with AvailablePrefixes = selectablePrefixes }
+        |> startStep (Step.Prefix(SelectableList.Prefixes.searchable selectablePrefixes model.SegmentsConfiguration))
+
+    let startBreakingChangeStep selectedEmoji selectedPrefix (model: Model) =
+        model |> startStep (Step.BreakingChange(BreakingChange.searchable selectedEmoji selectedPrefix))
+
+    let startConfirmationStep (model: Model) = // ↩
+        model |> startStep Step.Confirmation
 
     let restartCurrentStep (model: Model) =
         match model.CurrentStep.Step with
         | Step.Prefix _ -> model |> startPrefixStep model.AvailablePrefixes
         | Step.Emoji _ -> model |> startEmojiStep model.AvailableEmojis
         | Step.BreakingChange _
-        | Step.Confirmation _ -> model
+        | Step.Confirmation -> model
 
 [<AutoOpen>]
 module private StepCompletion =
-    let private addCompletedStep completedStep (model: Model) = {
-        model with // ↩
-            CompletedSteps = completedStep :: model.CompletedSteps
-    }
-
     let private completePrefixStep (selectedPrefix: SearchItem<Prefix>) (model: Model) =
         match model.CompletedSteps with
         | [] ->
@@ -348,8 +344,9 @@ module private StepCompletion =
                 | None -> failwith "Cannot complete breaking change step without a selected prefix."
 
         model // ↩
-        |> startConfirmationStep breakingChange.Item prefix.Item
+        |> startConfirmationStep
         |> addCompletedStep (CompletedStep.BreakingChange breakingChange)
+        |> addCompletedStep (CompletedStep.SemVerChange(SemVerChange.determine breakingChange.Item prefix.Item))
 
     let private tryCompleteCurrentStep strategy (model: Model) =
         match model.CurrentStep.Step with
@@ -362,9 +359,7 @@ module private StepCompletion =
         | Step.BreakingChange _ -> model
 
         // The final step cannot be auto-completed, but it can be confirmed, with `Msg.ConfirmAllSelection`
-        | Step.Confirmation _ when model.CurrentStep.Input <> "" -> // Invalid input -> reset
-            { model with CurrentStep = model.CurrentStep |> CurrentStep.setInvalidInput model.CurrentStep.Input }
-        | Step.Confirmation _ -> model
+        | Step.Confirmation -> model
 
     [<TailCall>]
     let rec tryCompleteManySteps strategy model =
@@ -396,7 +391,7 @@ let private handleMessage (msg: Msg) (model: Model) =
         |> tryCompleteManySteps ExactMatch
     | ToggleFirstStepToEmoji, { Step = Step.Prefix _ } -> model |> startEmojiStep Emoji.All
     | ToggleFirstStepToEmoji, _ -> model
-    | ConfirmAllSelection, { Step = Step.Confirmation _ } -> model |> noticeAllStepsCompleted
+    | ConfirmAllSelection, { Step = Step.Confirmation } -> model |> noticeAllStepsCompleted
     | ConfirmAllSelection, _ -> model
     | Terminate, _ -> model // Termination is handled by the Elmish program
     | Undo, _ -> model // Undo msg is handled before: in the `update` function

@@ -17,7 +17,7 @@ type Step =
     | Prefix of SelectableList<Prefix>
     | Emoji of SelectableList<Emoji>
     | BreakingChange of SelectableList<BreakingChange>
-    | Confirmation of SemVerChange option * invalidInput: string option
+    | Confirmation
 
 type CurrentStep = {
     Step: Step
@@ -29,6 +29,7 @@ type CompletedStep =
     | Prefix of selectedPrefix: SearchItem<Prefix>
     | Emoji of selectedEmoji: SearchItem<Emoji> // TODO 💡 skip the emoji - it can be Emoji.None "-", matching "none" and linked to any Prefix...
     | BreakingChange of selectedBreakingChange: SearchItem<BreakingChange>
+    | SemVerChange of SemVerChange option
 
 [<RequireQualifiedAccess>]
 type Possibility =
@@ -47,6 +48,7 @@ type Possibility =
 [<RequireQualifiedAccess>]
 type Error = // ↩
     | NoItems of StepName
+    | InputNotSupported of input: string
 
 type Model = {
     CurrentStep: CurrentStep
