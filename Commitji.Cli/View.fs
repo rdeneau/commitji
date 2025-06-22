@@ -195,7 +195,7 @@ module private Render =
 let private handleKeyPress (keyInfo: ConsoleKeyInfo) model dispatch =
     match keyInfo.Key, keyInfo.Modifiers, keyInfo.KeyChar with
     | ConsoleKey.Backspace, _, _
-    | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'z' -> dispatch Undo
+    | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'z' -> dispatch Undo // 💡 We can use [Alt]+[Z] when [Ctrl]+[Z] is caught by the terminal
     | ConsoleKey.DownArrow, _, _ -> dispatch SelectNext
     | ConsoleKey.UpArrow, _, _ -> dispatch SelectPrevious
     | ConsoleKey.Enter, _, _ ->
@@ -203,7 +203,7 @@ let private handleKeyPress (keyInfo: ConsoleKeyInfo) model dispatch =
         | Step.Confirmation _ -> dispatch ConfirmAllSelection
         | _ -> dispatch AcceptSelection
     | ConsoleKey.Escape, _, _ -> dispatch ToggleSearchMode
-    | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'f' -> dispatch ToggleSearchMode // 💡 We can use [Alt]+[F] when [Ctrl]+[F] is caught by the terminal // TODO: debug Ctrl+F not working (terminating!?)
+    | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'f' -> dispatch ToggleSearchMode // 💡 We can use [Alt]+[F] when [Ctrl]+[F] is caught by the terminal
     | _, ConsoleModifiers.Control, 'c' -> dispatch Terminate
     | _, _, Char.MinValue -> () // Ignore other control keys
     | _, ConsoleModifiers.None, ':' -> dispatch ToggleFirstStepToEmoji
