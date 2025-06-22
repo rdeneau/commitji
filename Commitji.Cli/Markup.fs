@@ -2,7 +2,7 @@
 
 open Commitji.Core.Model.Search
 
-let inline private applyMarkup markup text = // ↩
+let inline applyMarkup markup text = // ↩
     $"[%s{markup}]%s{text}[/]"
 
 let current = applyMarkup "cyan"
@@ -12,11 +12,15 @@ let selected = applyMarkup "green1"
 let selectedDim = applyMarkup "green3_1"
 let selectable = applyMarkup "green4"
 
+let error = applyMarkup "red"
 let em = applyMarkup "italic"
 let strong = applyMarkup "bold"
 
-let kbd text =
-    applyMarkup "white on grey" $"[[%s{text}]]"
+let kbd key =
+    applyMarkup "white on grey" $"[[%s{key}]]"
+
+let keyStroke keyStroke =
+    [ for k in keyStroke -> kbd k ] |> String.concat "+"
 
 let highlightSegmentWith applyHighlight (segment: SearchSegment) =
     let text = segment.Text
