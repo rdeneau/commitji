@@ -26,9 +26,9 @@ type CurrentStep = {
 
 [<RequireQualifiedAccess>]
 type CompletedStep =
-    | Prefix of selectedPrefix: Prefix
-    | Emoji of selectedEmoji: Emoji // TODO 💡 skip the emoji - it can be Emoji.None "-", matching "none" and linked to any Prefix...
-    | BreakingChange of BreakingChange
+    | Prefix of selectedPrefix: SearchItem<Prefix>
+    | Emoji of selectedEmoji: SearchItem<Emoji> // TODO 💡 skip the emoji - it can be Emoji.None "-", matching "none" and linked to any Prefix...
+    | BreakingChange of selectedBreakingChange: SearchItem<BreakingChange>
 
 [<RequireQualifiedAccess>]
 type Possibility =

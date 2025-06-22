@@ -124,12 +124,29 @@ module Fixture =
         static member SearchedEmojisAtStartBy(input, emojis) =
             Fixture.SearchedItem(Searched.emoji.By(input), emojis |> withHitAtStart)
 
+    [<RequireQualifiedAccess>]
+    type CompletedStepItem =
+        | Prefix of selectedPrefix: Prefix
+        | Emoji of selectedEmoji: Emoji
+        | BreakingChange of BreakingChange
+
+        static member ofCompletedStep =
+            function
+            | CompletedStep.Emoji emoji -> CompletedStepItem.Emoji emoji.Item
+            | CompletedStep.Prefix prefix -> CompletedStepItem.Prefix prefix.Item
+            | CompletedStep.BreakingChange breakingChange -> CompletedStepItem.BreakingChange breakingChange.Item
+
+    type Model with
+        member this.CompletedStepItems =
+            this.CompletedSteps
+            |> List.map CompletedStepItem.ofCompletedStep
+
     type Field =
         | CurrentStep of Step
         | CurrentInput of string
-        | CompleteStep of CompletedStep
-        | IncompleteStep of CompletedStep
-        | CompletedSteps of CompletedStep list
+        | CompletedStepItem of CompletedStepItem
+        | IncompleteStepItem of CompletedStepItem
+        | CompletedStepItems of CompletedStepItem list
         | SelectablePrefixes of Prefix list
         | SelectableEmojis of Emoji list
 
@@ -139,12 +156,12 @@ module Fixture =
                 match expectedField with
                 | CurrentStep _ -> CurrentStep actual.CurrentStep.Step
                 | CurrentInput _ -> CurrentInput actual.CurrentStep.Input
-                | CompleteStep step
-                | IncompleteStep step ->
-                    match actual.CompletedSteps |> List.contains step with
-                    | true -> CompleteStep step
-                    | false -> IncompleteStep step
-                | CompletedSteps _ -> CompletedSteps actual.CompletedSteps
+                | CompletedStepItem step
+                | IncompleteStepItem step ->
+                    match actual.CompletedStepItems |> List.contains step with
+                    | true -> CompletedStepItem step
+                    | false -> IncompleteStepItem step
+                | CompletedStepItems _ -> CompletedStepItems actual.CompletedStepItems
                 | SelectablePrefixes _ -> SelectablePrefixes actual.AvailablePrefixes
                 | SelectableEmojis _ -> SelectableEmojis actual.AvailableEmojis
         ]
@@ -585,7 +602,7 @@ module ``1_ select prefix first`` =
             |> update (Msg.InputChanged input)
             |> update Msg.AcceptSelection
 
-        actual |> shouldHave [ CompletedSteps [ CompletedStep.Prefix expectedPrefix ] ]
+        actual |> shouldHave [ CompletedStepItems [ CompletedStepItem.Prefix expectedPrefix ] ]
 
     [<Property>]
     let ``select the exact matching prefix`` (MinInputWithMatchingPrefixAndEmojis(exactPrefixInput, expectedPrefix, _)) =
@@ -593,7 +610,7 @@ module ``1_ select prefix first`` =
             Fixture.Initial.Model // ↩
             |> update (Msg.InputChanged exactPrefixInput)
 
-        actual |> shouldHave [ CompleteStep(CompletedStep.Prefix expectedPrefix) ]
+        actual |> shouldHave [ CompletedStepItem(CompletedStepItem.Prefix expectedPrefix) ]
 
 module ``2_ select emoji after prefix`` =
     let fixture = Fixture.Initial
@@ -622,8 +639,8 @@ module ``2_ select emoji after prefix`` =
 
         actual
         |> shouldHave [
-            CompleteStep(CompletedStep.Prefix expectedPrefix) // ↩
-            CompleteStep(CompletedStep.Emoji expectedEmoji)
+            CompletedStepItem(CompletedStepItem.Prefix expectedPrefix) // ↩
+            CompletedStepItem(CompletedStepItem.Emoji expectedEmoji)
         ]
 
     [<Fact>]
@@ -634,8 +651,8 @@ module ``2_ select emoji after prefix`` =
 
         actual
         |> shouldHave [
-            CompleteStep(CompletedStep.Prefix Prefix.Revert) // ↩
-            CompleteStep(CompletedStep.Emoji Emoji.Rewind)
+            CompletedStepItem(CompletedStepItem.Prefix Prefix.Revert) // ↩
+            CompletedStepItem(CompletedStepItem.Emoji Emoji.Rewind)
         ]
 
 module ``3_ select emoji first`` =
@@ -676,7 +693,7 @@ module ``3_ select emoji first`` =
             |> update (Msg.InputChanged input)
             |> update Msg.AcceptSelection
 
-        actual |> shouldHave [ CompleteStep(CompletedStep.Emoji expectedSelectedEmoji) ]
+        actual |> shouldHave [ CompletedStepItem(CompletedStepItem.Emoji expectedSelectedEmoji) ]
 
     [<Property>]
     let ``select the emoji matching exactly the given input`` (MinInputWithMatchingEmojiWithManyPrefixes(exactEmojiInput, expectedSelectedEmoji, _)) =
@@ -684,7 +701,7 @@ module ``3_ select emoji first`` =
             initial // ↩
             |> update (Msg.InputChanged exactEmojiInput)
 
-        actual |> shouldHave [ CompleteStep(CompletedStep.Emoji expectedSelectedEmoji) ]
+        actual |> shouldHave [ CompletedStepItem(CompletedStepItem.Emoji expectedSelectedEmoji) ]
 
 module ``4_ select prefix after emoji`` =
     let initial = Fixture.InitialForEmojis.Model
@@ -712,8 +729,8 @@ module ``4_ select prefix after emoji`` =
 
         actual
         |> shouldHave [
-            CompleteStep(CompletedStep.Prefix expectedPrefix) // ↩
-            CompleteStep(CompletedStep.Emoji expectedSelectedEmoji)
+            CompletedStepItem(CompletedStepItem.Prefix expectedPrefix) // ↩
+            CompletedStepItem(CompletedStepItem.Emoji expectedSelectedEmoji)
         ]
 
     [<Property>]
@@ -724,8 +741,8 @@ module ``4_ select prefix after emoji`` =
 
         actual
         |> shouldHave [
-            CompleteStep(CompletedStep.Prefix expectedPrefix) // ↩
-            CompleteStep(CompletedStep.Emoji expectedSelectedEmoji)
+            CompletedStepItem(CompletedStepItem.Prefix expectedPrefix) // ↩
+            CompletedStepItem(CompletedStepItem.Emoji expectedSelectedEmoji)
         ]
 
 module ``5_ select breaking change`` =
@@ -744,9 +761,9 @@ module ``5_ select breaking change`` =
 
         actual
         |> shouldHave [
-            CompleteStep(CompletedStep.Prefix expectedPrefix) // ↩
-            CompleteStep(CompletedStep.Emoji Emoji.Boom)
-            CompleteStep(CompletedStep.BreakingChange BreakingChange.Yes)
+            CompletedStepItem(CompletedStepItem.Prefix expectedPrefix) // ↩
+            CompletedStepItem(CompletedStepItem.Emoji Emoji.Boom)
+            CompletedStepItem(CompletedStepItem.BreakingChange BreakingChange.Yes)
         ]
 
     [<Property>]
@@ -761,9 +778,9 @@ module ``5_ select breaking change`` =
 
         actual
         |> shouldHave [
-            CompleteStep(CompletedStep.Prefix expectedPrefix) // ↩
-            CompleteStep(CompletedStep.Emoji expectedEmoji)
-            CompleteStep(CompletedStep.BreakingChange BreakingChange.Yes)
+            CompletedStepItem(CompletedStepItem.Prefix expectedPrefix) // ↩
+            CompletedStepItem(CompletedStepItem.Emoji expectedEmoji)
+            CompletedStepItem(CompletedStepItem.BreakingChange BreakingChange.Yes)
         ]
 
     [<Property>]
@@ -778,9 +795,9 @@ module ``5_ select breaking change`` =
 
         actual
         |> shouldHave [
-            CompleteStep(CompletedStep.Prefix expectedPrefix) // ↩
-            CompleteStep(CompletedStep.Emoji expectedEmoji)
-            CompleteStep(CompletedStep.BreakingChange BreakingChange.No)
+            CompletedStepItem(CompletedStepItem.Prefix expectedPrefix) // ↩
+            CompletedStepItem(CompletedStepItem.Emoji expectedEmoji)
+            CompletedStepItem(CompletedStepItem.BreakingChange BreakingChange.No)
         ]
 
     [<Property>]
@@ -794,9 +811,9 @@ module ``5_ select breaking change`` =
 
         actual
         |> shouldHave [
-            CompleteStep(CompletedStep.Prefix expectedPrefix) // ↩
-            CompleteStep(CompletedStep.Emoji expectedEmoji)
-            CompleteStep(CompletedStep.BreakingChange BreakingChange.No)
+            CompletedStepItem(CompletedStepItem.Prefix expectedPrefix) // ↩
+            CompletedStepItem(CompletedStepItem.Emoji expectedEmoji)
+            CompletedStepItem(CompletedStepItem.BreakingChange BreakingChange.No)
         ]
 
 module ``6_ determine semantic version change`` =

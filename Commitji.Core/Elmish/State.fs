@@ -10,8 +10,8 @@ type private MatchingStrategy =
 
 let private (|Match|_|) strategy ({ Items = items; Index = index }: SelectableList<'t>) =
     match strategy, items with
-    | FirstMatchAtIndex, list -> Some(list[index].Item)
-    | ExactMatch, [ x ] -> Some x.Item
+    | FirstMatchAtIndex, list -> Some(list[index])
+    | ExactMatch, [ x ] -> Some x
     | _ -> None
 
 [<RequireQualifiedAccess>]
@@ -311,31 +311,31 @@ module private StepCompletion =
             CompletedSteps = completedStep :: model.CompletedSteps
     }
 
-    let private completePrefixStep (selectedPrefix: Prefix) (model: Model) =
+    let private completePrefixStep (selectedPrefix: SearchItem<Prefix>) (model: Model) =
         match model.CompletedSteps with
         | [] ->
             model // ↩
-            |> startEmojiStep (Relation.emojisForPrefix selectedPrefix)
+            |> startEmojiStep (Relation.emojisForPrefix selectedPrefix.Item)
             |> addCompletedStep (CompletedStep.Prefix selectedPrefix)
         | [ CompletedStep.Emoji selectedEmoji ] ->
             model // ↩
-            |> startBreakingChangeStep selectedEmoji selectedPrefix
+            |> startBreakingChangeStep selectedEmoji.Item selectedPrefix.Item
             |> addCompletedStep (CompletedStep.Prefix selectedPrefix)
         | _ -> failwith $"Unexpected state: cannot complete prefix step given completed steps %A{model.CompletedSteps}."
 
-    let private completeEmojiStep (selectedEmoji: Emoji) (model: Model) =
+    let private completeEmojiStep (selectedEmoji: SearchItem<Emoji>) (model: Model) =
         match model.CompletedSteps with
         | [] ->
             model // ↩
-            |> startPrefixStep (Relation.prefixesForEmoji selectedEmoji)
+            |> startPrefixStep (Relation.prefixesForEmoji selectedEmoji.Item)
             |> addCompletedStep (CompletedStep.Emoji selectedEmoji)
         | [ CompletedStep.Prefix selectedPrefix ] ->
             model // ↩
-            |> startBreakingChangeStep selectedEmoji selectedPrefix
+            |> startBreakingChangeStep selectedEmoji.Item selectedPrefix.Item
             |> addCompletedStep (CompletedStep.Emoji selectedEmoji)
         | _ -> failwith $"Unexpected state: cannot complete emoji step given completed steps %A{model.CompletedSteps}."
 
-    let private completeBreakingChangeStep breakingChange (model: Model) =
+    let private completeBreakingChangeStep (breakingChange: SearchItem<BreakingChange>) (model: Model) =
         let prefix =
             model.CompletedSteps
             |> List.tryPick (
@@ -348,7 +348,7 @@ module private StepCompletion =
                 | None -> failwith "Cannot complete breaking change step without a selected prefix."
 
         model // ↩
-        |> startConfirmationStep breakingChange prefix
+        |> startConfirmationStep breakingChange.Item prefix.Item
         |> addCompletedStep (CompletedStep.BreakingChange breakingChange)
 
     let private tryCompleteCurrentStep strategy (model: Model) =
