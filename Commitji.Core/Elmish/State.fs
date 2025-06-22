@@ -211,7 +211,6 @@ let initWith searchMode =
         AvailableBreakingChanges = BreakingChange.All
         AvailablePossibilities = []
         SearchMode = searchMode
-        PreviousFullCompletion = None
         History = []
     }
     |> definePossibilities

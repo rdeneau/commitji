@@ -82,7 +82,6 @@ module Fixture =
             AvailablePossibilities = []
             History = []
             SearchMode = searchMode
-            PreviousFullCompletion = None
         }
         |> definePossibilities
 
@@ -132,7 +131,6 @@ module Fixture =
         | CompletedSteps of CompletedStep list
         | SelectablePrefixes of Prefix list
         | SelectableEmojis of Emoji list
-        | PreviousFullCompletion of (Prefix * Emoji * BreakingChange) option
 
     let shouldHave expectedFields (actual: Model) =
         let actualFields = [
@@ -148,7 +146,6 @@ module Fixture =
                 | CompletedSteps _ -> CompletedSteps actual.CompletedSteps
                 | SelectablePrefixes _ -> SelectablePrefixes actual.AvailablePrefixes
                 | SelectableEmojis _ -> SelectableEmojis actual.AvailableEmojis
-                | PreviousFullCompletion _ -> PreviousFullCompletion actual.PreviousFullCompletion
         ]
 
         actualFields =! expectedFields

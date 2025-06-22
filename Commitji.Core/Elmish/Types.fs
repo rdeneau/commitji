@@ -61,10 +61,6 @@ type Model = {
     AvailablePossibilities: Possibility list
 
     SearchMode: SearchMode
-
-    // TODO: to remove once the copy to clipboard is implemented
-    PreviousFullCompletion: (Prefix * Emoji * BreakingChange) option
-
     History: Model list
 }
 
