@@ -27,7 +27,7 @@ type CurrentStep = {
 [<RequireQualifiedAccess>]
 type CompletedStep =
     | Prefix of selectedPrefix: Prefix
-    | Emoji of selectedEmoji: Emoji // TODO: add the possibility to skip the emoji - it can be Emoji.None "-", matching "none" and linked to any Prefix...
+    | Emoji of selectedEmoji: Emoji // TODO 💡 skip the emoji - it can be Emoji.None "-", matching "none" and linked to any Prefix...
     | BreakingChange of BreakingChange
 
 [<RequireQualifiedAccess>]
@@ -37,12 +37,16 @@ type Possibility =
     | SelectNext
     | SelectPrevious
     | Search of SearchMode
-    | SearchByNumber
+    | SearchByNumber // TODO ❗ fix SearchByNumber
     | ToggleFirstStepToEmoji
     | ToggleSearchMode of SearchMode
     | Terminate
     | Undo
-    // TODO: ToggleHints: show: '?', hide: [Echap]
+    // TODO 💡 ToggleHints: show: '?', hide: [Echap]
+
+[<RequireQualifiedAccess>]
+type Error = // ↩
+    | NoItems of StepName
 
 type Model = {
     CurrentStep: CurrentStep
@@ -62,6 +66,7 @@ type Model = {
 
     SearchMode: SearchMode
     History: Model list
+    Errors: Error list
 }
 
 type Msg =
@@ -78,5 +83,4 @@ type Msg =
 // TODO: handle Notices
 type Notice =
     | NoNotice
-    | InvalidInput of input: string
     | AllStepsCompleted of commitMessageTemplate: string

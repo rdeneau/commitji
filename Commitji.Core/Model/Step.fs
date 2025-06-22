@@ -17,3 +17,8 @@ type StepName =
 [<RequireQualifiedAccess>]
 module StepName =
     let All = Reflection.getEnumLikeUnionCases<StepName> ()
+
+type StepStatus =
+    | Completed of value: string
+    | Current
+    | Pending
