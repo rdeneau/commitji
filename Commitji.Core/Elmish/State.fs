@@ -109,6 +109,21 @@ module Extensions =
                     | i -> i - 1
         }
 
+    type Step with
+        member this.Name =
+            match this with
+            | Step.Prefix _ -> StepName.Prefix
+            | Step.Emoji _ -> StepName.Emoji
+            | Step.BreakingChange _ -> StepName.BreakingChange
+            | Step.Confirmation _ -> StepName.Confirmation
+
+        member this.Type =
+            match this with
+            | Step.Prefix prefixes -> StepType.Selection prefixes.Items.Length
+            | Step.Emoji emojis -> StepType.Selection emojis.Items.Length
+            | Step.BreakingChange breakingChanges -> StepType.Selection breakingChanges.Items.Length
+            | Step.Confirmation _ -> StepType.Confirmation
+
 [<RequireQualifiedAccess>]
 module SelectableList =
     let searchedBy input (search: Search<'t, _>) items =
@@ -119,26 +134,26 @@ module SelectableList =
 
     [<RequireQualifiedAccess>]
     module Prefixes =
-        let searchedBy input (segmentsConfig: SegmentsConfiguration) (prefixes: Prefix list) =
+        let searchedBy input (prefixes: Prefix list) (segmentsConfig: SegmentsConfiguration) =
             searchedBy input segmentsConfig.AsPrefixesSearch prefixes
 
-        let searchable (segmentsConfig: SegmentsConfiguration) (prefixes: Prefix list) =
+        let searchable (prefixes: Prefix list) (segmentsConfig: SegmentsConfiguration) =
             searchable segmentsConfig.AsPrefixesSearch prefixes
 
     [<RequireQualifiedAccess>]
     module Emojis =
-        let searchedBy input (segmentsConfig: SegmentsConfiguration) (emojis: Emoji list) =
+        let searchedBy input (emojis: Emoji list) (segmentsConfig: SegmentsConfiguration) =
             searchedBy input segmentsConfig.AsEmojisSearch emojis
 
-        let searchable (segmentsConfig: SegmentsConfiguration) (emojis: Emoji list) =
+        let searchable (emojis: Emoji list) (segmentsConfig: SegmentsConfiguration) =
             searchable segmentsConfig.AsEmojisSearch emojis
 
     [<RequireQualifiedAccess>]
     module BreakingChanges =
-        let searchedBy input (segmentsConfig: SegmentsConfiguration) (breakingChanges: BreakingChange list) =
+        let searchedBy input (breakingChanges: BreakingChange list) (segmentsConfig: SegmentsConfiguration) =
             searchedBy input segmentsConfig.AsBreakingChangesSearch breakingChanges
 
-        let searchable (segmentsConfig: SegmentsConfiguration) (breakingChanges: BreakingChange list) =
+        let searchable (breakingChanges: BreakingChange list) (segmentsConfig: SegmentsConfiguration) =
             searchable segmentsConfig.AsBreakingChangesSearch breakingChanges
 
 [<AutoOpen>]
@@ -159,36 +174,36 @@ module Possibilities =
         acceptedPossibilities |> List.exists (fun p -> model.AvailablePossibilities |> List.contains p)
 
     let determinePossibilities (model: Model) =
-        let stepName, stepType =
-            match model.CurrentStep.Step with
-            | Step.Prefix prefixes -> StepName.Prefix, StepType.Selection prefixes.Items.Length
-            | Step.Emoji emojis -> StepName.Emoji, StepType.Selection emojis.Items.Length
-            | Step.BreakingChange breakingChanges -> StepName.BreakingChange, StepType.Selection breakingChanges.Items.Length
-            | Step.Confirmation _ -> StepName.Confirmation, StepType.Confirmation
+        let step = model.CurrentStep.Step
 
         [
-            match stepName with
+            match step.Name with
             | StepName.Prefix
             | StepName.Emoji ->
                 Possibility.Search model.SearchMode
-                Possibility.SearchByNumber
+
+                match step.Type with
+                | StepType.Selection n when n > 1 -> Possibility.SearchByNumber
+                | _ -> ()
+
                 Possibility.ToggleSearchMode(model.SearchMode.Toggle())
+
             | StepName.BreakingChange -> // ↩
                 Possibility.Search model.SearchMode
+
             | StepName.Confirmation -> // ↩
                 Possibility.ConfirmAllSelection
 
-            match stepType with
-            | StepType.Selection 1 -> // ↩
-                Possibility.AcceptSelection // This possibility should not be exercised because of the auto-completion.
+            match step.Type with
             | StepType.Selection n when n > 1 ->
                 Possibility.AcceptSelection
                 Possibility.SelectNext
                 Possibility.SelectPrevious
+
             | StepType.Selection _
             | StepType.Confirmation -> ()
 
-            if stepName = StepName.Prefix && model.CurrentStep.Input.Length = 0 && model.CompletedSteps.IsEmpty then
+            if step.Name = StepName.Prefix && model.CurrentStep.Input.Length = 0 && model.CompletedSteps.IsEmpty then
                 Possibility.ToggleFirstStepToEmoji
 
             if not model.History.IsEmpty then
@@ -204,7 +219,7 @@ module Possibilities =
 
 let initWith searchMode =
     {
-        CurrentStep = CurrentStep.start (Step.Prefix(SelectableList.Prefixes.searchable (SegmentsConfiguration.ofSearchMode searchMode) Prefix.All))
+        CurrentStep = CurrentStep.start (Step.Prefix(SelectableList.Prefixes.searchable Prefix.All (SegmentsConfiguration.ofSearchMode searchMode)))
         CompletedSteps = []
         AvailablePrefixes = Prefix.All
         AvailableEmojis = Emoji.All
@@ -212,48 +227,64 @@ let initWith searchMode =
         AvailablePossibilities = []
         SearchMode = searchMode
         History = []
+        Errors = []
     }
     |> definePossibilities
 
 let init () = initWith SearchMode.Quick
 
 let private performSearch (model: Model) =
-    let step =
-        match model.CurrentStep.Step, SearchInput.tryCreate model.CurrentStep.Input with
-        | Step.Prefix _, Some input -> // ↩
-            Step.Prefix(SelectableList.Prefixes.searchedBy input model.SegmentsConfiguration model.AvailablePrefixes)
+    let updateModelStep getStep getSelectableList =
+        let selectableList: SelectableList<_> =
+            getSelectableList model.SegmentsConfiguration
 
-        | Step.Prefix _, None -> // ↩
-            Step.Prefix(SelectableList.Prefixes.searchable model.SegmentsConfiguration model.AvailablePrefixes)
+        let step: Step = // ↩
+            getStep selectableList
 
-        | Step.Emoji _, Some input -> // ↩
-            Step.Emoji(SelectableList.Emojis.searchedBy input model.SegmentsConfiguration model.AvailableEmojis)
+        let errors =
+            match selectableList.Items with
+            | [] -> [ Error.NoItems step.Name ]
+            | _ -> []
 
-        | Step.Emoji _, None -> // ↩
-            Step.Emoji(SelectableList.Emojis.searchable model.SegmentsConfiguration model.AvailableEmojis)
+        {
+            model with // ↩
+                Model.CurrentStep.Step = step
+                Model.Errors = model.Errors @ errors
+        }
 
-        | Step.BreakingChange _, Some input -> // ↩
-            Step.BreakingChange(SelectableList.BreakingChanges.searchedBy input model.SegmentsConfiguration model.AvailableBreakingChanges)
+    match model.CurrentStep.Step, SearchInput.tryCreate model.CurrentStep.Input with
+    | Step.Prefix _, Some input -> // ↩
+        updateModelStep Step.Prefix (SelectableList.Prefixes.searchedBy input model.AvailablePrefixes)
 
-        | Step.BreakingChange _, None -> // ↩
-            Step.BreakingChange(SelectableList.BreakingChanges.searchable model.SegmentsConfiguration model.AvailableBreakingChanges)
+    | Step.Prefix _, None -> // ↩
+        updateModelStep Step.Prefix (SelectableList.Prefixes.searchable model.AvailablePrefixes)
 
-        | step, _ -> step
+    | Step.Emoji _, Some input -> // ↩
+        updateModelStep Step.Emoji (SelectableList.Emojis.searchedBy input model.AvailableEmojis)
 
-    { model with Model.CurrentStep.Step = step }
+    | Step.Emoji _, None -> // ↩
+        updateModelStep Step.Emoji (SelectableList.Emojis.searchable model.AvailableEmojis)
+
+    | Step.BreakingChange _, Some input -> // ↩
+        updateModelStep Step.BreakingChange (SelectableList.BreakingChanges.searchedBy input model.AvailableBreakingChanges)
+
+    | Step.BreakingChange _, None -> // ↩
+        updateModelStep Step.BreakingChange (SelectableList.BreakingChanges.searchable model.AvailableBreakingChanges)
+
+    | _ -> model
 
 [<AutoOpen>]
 module private StartStep =
     let startEmojiStep selectableEmojis (model: Model) = {
         model with // ↩
             AvailableEmojis = selectableEmojis
-            CurrentStep = CurrentStep.start (Step.Emoji(SelectableList.Emojis.searchable model.SegmentsConfiguration selectableEmojis))
+            CurrentStep = CurrentStep.start (Step.Emoji(SelectableList.Emojis.searchable selectableEmojis model.SegmentsConfiguration))
     }
 
     let startPrefixStep selectablePrefixes (model: Model) = {
         model with // ↩
             AvailablePrefixes = selectablePrefixes
-            CurrentStep = CurrentStep.start (Step.Prefix(SelectableList.Prefixes.searchable model.SegmentsConfiguration selectablePrefixes))
+            CurrentStep = CurrentStep.start (Step.Prefix(SelectableList.Prefixes.searchable selectablePrefixes model.SegmentsConfiguration))
     }
 
     let startBreakingChangeStep selectedEmoji selectedPrefix (model: Model) = {
@@ -378,7 +409,6 @@ let update (msg: Msg) (model: Model) =
         | Undo, previous :: _ -> previous
         | Undo, [] -> model
         | _ ->
-            // Add the current model to the history before processing the message
-            { model with History = model :: model.History } // ↩
+            { model with History = model :: model.History; Errors = [] } // ↩
             |> handleMessage msg
             |> definePossibilities

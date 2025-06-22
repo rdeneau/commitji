@@ -61,19 +61,19 @@ module Stepper =
                 Stepper.step (name.Text, status)
         ]
 
-        AnsiConsole.WriteLine ""
+        AnsiConsole.WriteLine()
 
-module private Render =
+[<RequireQualifiedAccess>]
+module private HintPanel =
     type Example = Example of input: string * result: string
 
-    let (==>) input result = Example(input, result)
+    let private (==>) input result = Example(input, result)
 
-    type Hint with
+    type private Hint with
         static member key key text = // ↩
             Hint(Markup.kbd key, text)
 
-        static member keyStroke keyStroke text =
-            Hint(Markup.keyStroke keyStroke, text)
+        static member keyStroke keyStroke text = Hint(Markup.keyStroke keyStroke, text)
 
         static member upDownKeys item =
             Hint($"""%s{Markup.kbd "↓"}/%s{Markup.kbd "↑"} + %s{Markup.kbd "Enter"}""", $"Select the next/previous %s{item}")
@@ -84,8 +84,8 @@ module private Render =
         static member selectByNumber maxNumber item =
             Hint($"""%s{Markup.kbd "1"}..%s{Markup.kbd $"%i{maxNumber}"}""", $"Select the %s{item} by number")
 
-    let private hintPanel (model: Model) =
-        let hints = [
+    let render (model: Model) =
+        Panel.hints [
             for possibility in model.AvailablePossibilities do
                 match possibility, model.CurrentStep.Step with
                 | Possibility.Search SearchMode.Quick, Step.Emoji _ -> Hint.search "the emoji code" "auto-completion" ("z" ==> "zap ⚡")
@@ -126,8 +126,7 @@ module private Render =
                 | Possibility.Undo, _ -> Hint($"""%s{Markup.keyStroke [ "Alt"; "Z" ]} %s{Markup.em "or"} %s{Markup.kbd "Backspace"}""", "Undo the last action ⏪") // TODO: indicate the last action (historizing the MSg)
         ]
 
-        Panel.hints hints
-
+module private Render =
     let private selectionPanel selection =
         let panel =
             Panel(
@@ -142,55 +141,63 @@ module private Render =
     let private instruction text =
         AnsiConsole.MarkupLine($"[bold cyan]?[/] [bold]%s{text}[/]")
 
+    let private errors (model: Model) =
+        match model.Errors with
+        | [] -> ()
+        | errors ->
+            AnsiConsole.WriteLine()
+
+            Panel.errors [
+                for error in errors do
+                    match error with
+                    | Error.NoItems stepName ->
+                        let itemName =
+                            match stepName with
+                            | StepName.Prefix -> "prefixes"
+                            | StepName.Emoji -> "emojis"
+                            | StepName.BreakingChange -> "breaking changes"
+                            | StepName.Confirmation -> "semantic version changes"
+
+                        $"No {itemName} found."
+            ]
+
     let currentStep (model: Model) =
         match model.CurrentStep.Step with
         | Step.Prefix prefixes ->
             instruction "Select a prefix for the commit message:"
-
-            SelectionPrompt.render (currentChoiceIndex = prefixes.Index) [
-                for prefix in prefixes.Items do
-                    prefix.Segments
-            ]
-
-            AnsiConsole.WriteLine ""
-            hintPanel model
+            errors model
+            SelectionPrompt.render (currentChoiceIndex = prefixes.Index) [ for prefix in prefixes.Items -> prefix.Segments ]
+            AnsiConsole.WriteLine()
+            HintPanel.render model
 
         | Step.Emoji emojis ->
             instruction "Select an emoji for the commit message:"
-
-            SelectionPrompt.render (currentChoiceIndex = emojis.Index) [
-                for emoji in emojis.Items do
-                    emoji.Segments
-            ]
-
-            AnsiConsole.WriteLine ""
-            hintPanel model
+            errors model
+            SelectionPrompt.render (currentChoiceIndex = emojis.Index) [ for emoji in emojis.Items -> emoji.Segments ]
+            AnsiConsole.WriteLine()
+            HintPanel.render model
 
         | Step.BreakingChange breakingChanges ->
             instruction "Indicate if it's a breaking change:"
-
-            SelectionPrompt.render (currentChoiceIndex = breakingChanges.Index) [
-                for breakingChanges in breakingChanges.Items do
-                    breakingChanges.Segments
-            ]
-
-            AnsiConsole.WriteLine ""
-            hintPanel model
+            errors model
+            SelectionPrompt.render (currentChoiceIndex = breakingChanges.Index) [ for breakingChanges in breakingChanges.Items -> breakingChanges.Segments ]
+            AnsiConsole.WriteLine()
+            HintPanel.render model
 
         | Step.Confirmation(_, invalidInput) ->
             instruction "Confirm your selection"
-            AnsiConsole.WriteLine ""
+            AnsiConsole.WriteLine()
 
             // TODO RDE: display the commit message
 
-            hintPanel model
+            HintPanel.render model
 
             // TODO: display for all steps when using the Notice, in a panel
             match invalidInput with
             | Some input -> AnsiConsole.MarkupLine($"[red]Invalid input: {input}[/]")
             | None -> ()
 
-        AnsiConsole.WriteLine ""
+        AnsiConsole.WriteLine()
 
 let private handleKeyPress (keyInfo: ConsoleKeyInfo) model dispatch =
     match keyInfo.Key, keyInfo.Modifiers, keyInfo.KeyChar with
@@ -215,7 +222,7 @@ let render model dispatch =
 
     let title = Rule("[bold orange1]Commit[/][yellow italic]ji[/]").Centered()
     AnsiConsole.Write(title)
-    AnsiConsole.WriteLine ""
+    AnsiConsole.WriteLine()
 
     Stepper.render model
     Render.currentStep model

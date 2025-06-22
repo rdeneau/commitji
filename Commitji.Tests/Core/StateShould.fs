@@ -37,10 +37,10 @@ module Search =
             | SearchMode.Custom(_, segmentsConfiguration) -> segmentsConfiguration
 
         member this.SearchablePrefixes prefixes =
-            SelectableList.Prefixes.searchable this.SegmentsConfiguration prefixes
+            SelectableList.Prefixes.searchable prefixes this.SegmentsConfiguration
 
         member this.SearchableEmojis emojis =
-            SelectableList.Emojis.searchable this.SegmentsConfiguration emojis
+            SelectableList.Emojis.searchable emojis this.SegmentsConfiguration
 
     [<RequireQualifiedAccess>]
     module Searched =
@@ -80,8 +80,9 @@ module Fixture =
             AvailableEmojis = Emoji.All
             AvailableBreakingChanges = BreakingChange.All
             AvailablePossibilities = []
-            History = []
             SearchMode = searchMode
+            History = []
+            Errors = []
         }
         |> definePossibilities
 
@@ -696,7 +697,7 @@ module ``4_ select prefix after emoji`` =
 
         actual
         |> shouldHave [
-            CurrentStep(Step.Prefix(SelectableList.Prefixes.searchable initial.SearchMode.SegmentsConfiguration expectedPrefixes)) // ↩
+            CurrentStep(Step.Prefix(SelectableList.Prefixes.searchable expectedPrefixes initial.SearchMode.SegmentsConfiguration)) // ↩
             CurrentInput ""
         ]
 

@@ -1,12 +1,8 @@
 ﻿module Commitji.Cli.Components.Stepper
 
 open Commitji.Cli
+open Commitji.Core.Model
 open Spectre.Console
-
-type StepStatus =
-    | Completed of value: string
-    | Current
-    | Pending
 
 type StepProps = { Name: string; Status: StepStatus }
 
