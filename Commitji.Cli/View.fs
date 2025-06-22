@@ -10,53 +10,28 @@ open Commitji.Core.Model.Search
 open Spectre.Console
 
 [<RequireQualifiedAccess>]
-module Stepper =
-    let private allStepNames = Set StepName.All
+module private ErrorPanel =
+    let render (model: Model) =
+        match model.Errors with
+        | [] -> ()
+        | errors ->
+            AnsiConsole.WriteLine()
 
-    let determineSteps (model: Model) =
-        let existingSteps = [
-            for step in List.rev model.CompletedSteps do
-                match step with
-                | CompletedStep.Prefix prefix -> StepName.Prefix, StepStatus.Completed prefix.Item.Code
-                | CompletedStep.Emoji emoji -> StepName.Emoji, StepStatus.Completed $"%s{emoji.Item.Code} %s{emoji.Item.Char}"
-                | CompletedStep.BreakingChange breakingChange -> StepName.BreakingChange, StepStatus.Completed breakingChange.Item.Code
-                | CompletedStep.SemVerChange _ -> ()
+            Panel.errors [
+                for error in errors do
+                    match error with
+                    | Error.NoItems stepName ->
+                        let noItemFound itemName = $"No {itemName} found."
 
-            match model.CurrentStep.Step with
-            | Step.Prefix _ -> StepName.Prefix, StepStatus.Current
-            | Step.Emoji _ -> StepName.Emoji, StepStatus.Current
-            | Step.BreakingChange _ -> StepName.BreakingChange, StepStatus.Current
-            | Step.Confirmation -> StepName.Confirmation, StepStatus.Current
-        ]
+                        match stepName with
+                        | StepName.Prefix -> noItemFound "prefixes"
+                        | StepName.Emoji -> noItemFound "emojis"
+                        | StepName.BreakingChange -> noItemFound "breaking changes"
+                        | StepName.SemVerChange
+                        | StepName.Confirmation -> ()
 
-        let pendingSteps =
-            Set [ for name, _ in existingSteps -> name ] // ↩
-            |> Set.difference allStepNames
-
-        [
-            for name, status in existingSteps do
-                name, status
-
-            for name in pendingSteps do
-                name, StepStatus.Pending
-        ]
-
-    type StepName with
-        member this.Text =
-            match this with
-            | StepName.Prefix -> "Prefix"
-            | StepName.Emoji -> "Emoji"
-            | StepName.BreakingChange -> "Breaking change"
-            | StepName.SemVerChange -> "Semantic version change"
-            | StepName.Confirmation -> "Confirmation"
-
-    let render model =
-        Stepper.render [
-            for name, status in determineSteps model do
-                Stepper.step (name.Text, status)
-        ]
-
-        AnsiConsole.WriteLine()
+                    | Error.InputNotSupported input -> $"Input not supported: %s{input}."
+            ]
 
 [<RequireQualifiedAccess>]
 module private HintPanel =
@@ -90,7 +65,7 @@ module private HintPanel =
                 | Possibility.Search SearchMode.FullText, Step.Prefix _ -> Hint.search "a part of the prefix code or description" "full-text search" ("bug" ==> "fix")
 
                 | Possibility.Search _, Step.BreakingChange _ -> Hint.search "the response" "auto-completion" ("y" ==> "Yes")
-                | Possibility.Search _, Step.Confirmation -> ()
+                | Possibility.Search _, Step.Confirmation _ -> ()
 
                 | Possibility.Search(SearchMode.Custom _), _ -> ()
 
@@ -99,17 +74,17 @@ module private HintPanel =
                 | Possibility.SelectPrevious, Step.Emoji _ -> Hint.upDownKeys "emoji"
                 | Possibility.SelectPrevious, Step.Prefix _ -> Hint.upDownKeys "prefix"
                 | Possibility.SelectPrevious, Step.BreakingChange _ -> Hint.upDownKeys "response"
-                | Possibility.SelectPrevious, Step.Confirmation -> ()
+                | Possibility.SelectPrevious, Step.Confirmation _ -> ()
 
                 | Possibility.SearchByNumber, Step.Emoji _ -> Hint.selectByNumber model.AvailableEmojis.Length "emoji"
                 | Possibility.SearchByNumber, Step.Prefix _ -> Hint.selectByNumber model.AvailablePrefixes.Length "prefix"
                 | Possibility.SearchByNumber, Step.BreakingChange _ -> ()
-                | Possibility.SearchByNumber, Step.Confirmation -> ()
+                | Possibility.SearchByNumber, Step.Confirmation _ -> ()
 
                 | Possibility.ConfirmAllSelection, Step.Prefix _
                 | Possibility.ConfirmAllSelection, Step.Emoji _
                 | Possibility.ConfirmAllSelection, Step.BreakingChange _ -> ()
-                | Possibility.ConfirmAllSelection, Step.Confirmation -> Hint.key "Enter" "Confirm the commit message template and copy it to the clipboard ✅" // TODO RDE: copy to clipboard
+                | Possibility.ConfirmAllSelection, Step.Confirmation _ -> Hint.key "Enter" "Copy the commit message template to the clipboard ✅" // TODO ❗ copy to clipboard
 
                 | Possibility.ToggleFirstStepToEmoji, _ -> Hint.key ":" "Start by selecting an emoji"
 
@@ -118,9 +93,10 @@ module private HintPanel =
                 | Possibility.ToggleSearchMode(SearchMode.Custom _), _ -> ()
 
                 | Possibility.Terminate, _ -> Hint.keyStroke [ "Ctrl"; "C" ] $"""Quit %s{Markup.error "✖"}"""
-                | Possibility.Undo, _ -> Hint($"""%s{Markup.keyStroke [ "Alt"; "Z" ]} %s{Markup.em "or"} %s{Markup.kbd "Backspace"}""", "Undo the last action ⏪") // TODO: indicate the last action (historizing the MSg)
+                | Possibility.Undo, _ -> Hint($"""%s{Markup.keyStroke [ "Alt"; "Z" ]} %s{Markup.em "or"} %s{Markup.kbd "Backspace"}""", "Undo the last action ⏪") // TODO 💡 indicate the last action (historizing the MSg)
         ]
 
+[<RequireQualifiedAccess>]
 module private Instruction =
     let private render text =
         AnsiConsole.MarkupLine(Markup.strong (Markup.current "? ") + text)
@@ -138,32 +114,90 @@ module private Instruction =
         render "Semantic version change:"
 
     let confirmation () = // ↩
-        render "Confirm the selection:"
+        render "Confirm the commit message template:"
 
-module private Render =
-    [<RequireQualifiedAccess>]
-    module private SemVerChange =
-        let private __ = "_"
-        let private up = Markup.selectedDim "+1"
-        let private dot = Markup.inactive "."
+[<RequireQualifiedAccess>]
+module private SemVerChange =
+    let private __ = "_"
+    let private up = Markup.selectedDim "+1"
+    let private dot = Markup.inactive "."
 
-        let segments semVerChange = [
-            match semVerChange with
-            | None -> // ↩
-                SearchSegment.NotSearchable(SegmentId.Code, "None")
+    let segments semVerChange = [
+        match semVerChange with
+        | None -> // ↩
+            SearchSegment.NotSearchable(SegmentId.Code, "None")
 
-            | Some(semVerChange: SemVerChange) -> // ↩
-                SearchSegment.NotSearchable(SegmentId.Code, semVerChange.Code)
+        | Some(semVerChange: SemVerChange) -> // ↩
+            SearchSegment.NotSearchable(SegmentId.Code, semVerChange.Code)
 
-                let format =
-                    match semVerChange with
-                    | Major -> up + dot + __ + dot + __
-                    | Minor -> __ + dot + up + dot + __
-                    | Patch -> __ + dot + __ + dot + up
+            let format =
+                match semVerChange with
+                | Major -> up + dot + __ + dot + __
+                | Minor -> __ + dot + up + dot + __
+                | Patch -> __ + dot + __ + dot + up
 
-                SearchSegment.NotSearchable(SegmentId.Hint, format)
+            SearchSegment.NotSearchable(SegmentId.Hint, format)
+    ]
+
+[<RequireQualifiedAccess>]
+module Stepper =
+    let private allStepNames =
+        Set [ StepName.Prefix; StepName.Emoji; StepName.BreakingChange; StepName.Confirmation ]
+
+    let determineSteps (model: Model) =
+        let existingSteps = [
+            for step in List.rev model.CompletedSteps do
+                match step with
+                | CompletedStep.Prefix prefix -> StepName.Prefix, StepStatus.Completed prefix.Item.Code
+                | CompletedStep.Emoji emoji -> StepName.Emoji, StepStatus.Completed $"%s{emoji.Item.Code} %s{emoji.Item.Char}"
+                | CompletedStep.BreakingChange breakingChange -> StepName.BreakingChange, StepStatus.Completed breakingChange.Item.Code
+                | CompletedStep.SemVerChange _ -> ()
+
+            match model.CurrentStep.Step with
+            | Step.Prefix _ -> StepName.Prefix, StepStatus.Current
+            | Step.Emoji _ -> StepName.Emoji, StepStatus.Current
+            | Step.BreakingChange _ -> StepName.BreakingChange, StepStatus.Current
+            | Step.Confirmation _ -> StepName.Confirmation, StepStatus.Current
         ]
 
+        let pendingSteps =
+            Set [ for name, _ in existingSteps -> name ] // ↩
+            |> Set.difference allStepNames
+
+        [
+            for name, status in existingSteps do
+                name, status
+
+            for name in pendingSteps do
+                name, StepStatus.Pending
+        ]
+
+    type StepName with
+        member this.Text =
+            match this with
+            | StepName.Prefix -> "Prefix"
+            | StepName.Emoji -> "Emoji"
+            | StepName.BreakingChange -> "Breaking change"
+            | StepName.SemVerChange -> "Semantic version change"
+            | StepName.Confirmation -> "Confirmation"
+
+    let render model =
+        Stepper.render [
+            for name, status in determineSteps model do
+                Stepper.step (name.Text, status)
+        ]
+
+        AnsiConsole.WriteLine()
+
+[<RequireQualifiedAccess>]
+module private CommitMessageTemplate =
+    let render text =
+        let grid = Grid().AddColumns(count = 2)
+
+        grid.AddRow(Markup.current " »", text) // ↩
+        |> AnsiConsole.Write
+
+module private Render =
     let completedSteps (model: Model) =
         for step in List.rev model.CompletedSteps do
             match step with
@@ -187,55 +221,33 @@ module private Render =
                 SelectionPrompt.render (currentChoiceIndex = 0) [ SemVerChange.segments semVerChange ]
                 AnsiConsole.WriteLine()
 
-    let private errors (model: Model) =
-        match model.Errors with
-        | [] -> ()
-        | errors ->
-            AnsiConsole.WriteLine()
-
-            Panel.errors [
-                for error in errors do
-                    match error with
-                    | Error.NoItems stepName ->
-                        let noItemFound itemName = $"No {itemName} found."
-
-                        match stepName with
-                        | StepName.Prefix -> noItemFound "prefixes"
-                        | StepName.Emoji -> noItemFound "emojis"
-                        | StepName.BreakingChange -> noItemFound "breaking changes"
-                        | StepName.SemVerChange
-                        | StepName.Confirmation -> ()
-
-                    | Error.InputNotSupported input -> $"Input not supported: %s{input}."
-            ]
-
     let currentStep (model: Model) =
         match model.CurrentStep.Step with
         | Step.Prefix prefixes ->
             Instruction.prefix ()
-            errors model
+            ErrorPanel.render model
             SelectionPrompt.render (currentChoiceIndex = prefixes.Index) [ for prefix in prefixes.Items -> prefix.Segments ]
             AnsiConsole.WriteLine()
             HintPanel.render model
 
         | Step.Emoji emojis ->
             Instruction.emoji ()
-            errors model
+            ErrorPanel.render model
             SelectionPrompt.render (currentChoiceIndex = emojis.Index) [ for emoji in emojis.Items -> emoji.Segments ]
             AnsiConsole.WriteLine()
             HintPanel.render model
 
         | Step.BreakingChange breakingChanges ->
             Instruction.breakingChange ()
-            errors model
+            ErrorPanel.render model
             SelectionPrompt.render (currentChoiceIndex = breakingChanges.Index) [ for breakingChanges in breakingChanges.Items -> breakingChanges.Segments ]
             AnsiConsole.WriteLine()
             HintPanel.render model
 
-        | Step.Confirmation ->
+        | Step.Confirmation commitMessageTemplate ->
             Instruction.confirmation ()
+            CommitMessageTemplate.render commitMessageTemplate
             AnsiConsole.WriteLine()
-            // TODO RDE: display the commit message
             HintPanel.render model
 
         AnsiConsole.WriteLine()
@@ -248,8 +260,10 @@ let private handleKeyPress (keyInfo: ConsoleKeyInfo) model dispatch =
     | ConsoleKey.UpArrow, _, _ -> dispatch SelectPrevious
     | ConsoleKey.Enter, _, _ ->
         match model.CurrentStep.Step with
-        | Step.Confirmation -> dispatch ConfirmAllSelection
-        | _ -> dispatch AcceptSelection
+        | Step.Prefix _
+        | Step.Emoji _
+        | Step.BreakingChange _ -> dispatch AcceptSelection
+        | Step.Confirmation _ -> dispatch ConfirmAllSelection
     | ConsoleKey.Escape, _, _ -> dispatch ToggleSearchMode
     | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'f' -> dispatch ToggleSearchMode // 💡 We can use [Alt]+[F] when [Ctrl]+[F] is caught by the terminal
     | _, ConsoleModifiers.Control, 'c' -> dispatch Terminate

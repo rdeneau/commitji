@@ -113,14 +113,14 @@ module Extensions =
             | Step.Prefix _ -> StepName.Prefix
             | Step.Emoji _ -> StepName.Emoji
             | Step.BreakingChange _ -> StepName.BreakingChange
-            | Step.Confirmation -> StepName.Confirmation
+            | Step.Confirmation _ -> StepName.Confirmation
 
         member this.Type =
             match this with
             | Step.Prefix prefixes -> StepType.Selection prefixes.Items.Length
             | Step.Emoji emojis -> StepType.Selection emojis.Items.Length
             | Step.BreakingChange breakingChanges -> StepType.Selection breakingChanges.Items.Length
-            | Step.Confirmation -> StepType.Confirmation
+            | Step.Confirmation _ -> StepType.Confirmation
 
 [<RequireQualifiedAccess>]
 module SelectableList =
@@ -233,6 +233,38 @@ let initWith searchMode =
 
 let init () = initWith SearchMode.Quick
 
+let private determineCommitMessageTemplate (model: Model) =
+    let prefix =
+        model.CompletedSteps
+        |> List.pick (
+            function
+            | CompletedStep.Prefix prefix -> Some prefix.Item
+            | _ -> None
+        )
+
+    let emoji =
+        model.CompletedSteps
+        |> List.pick (
+            function
+            | CompletedStep.Emoji emoji -> Some emoji.Item
+            | _ -> None
+        )
+
+    let breakingChange =
+        model.CompletedSteps
+        |> List.pick (
+            function
+            | CompletedStep.BreakingChange breakingChange -> Some breakingChange.Item
+            | _ -> None
+        )
+
+    let breakingChangeMessage =
+        match breakingChange with
+        | BreakingChange.Yes -> Environment.NewLine + Environment.NewLine + "BREAKING CHANGE: "
+        | BreakingChange.No -> ""
+
+    $"%s{prefix.Code}: %s{emoji.Char}%s{breakingChangeMessage}"
+
 let private performSearch (model: Model) =
     let updateModelStep getStep getSelectableList =
         let selectableList: SelectableList<_> =
@@ -271,10 +303,10 @@ let private performSearch (model: Model) =
     | Step.BreakingChange _, None -> // ↩
         updateModelStep Step.BreakingChange (SelectableList.BreakingChanges.searchable model.AvailableBreakingChanges)
 
-    | Step.Confirmation, Some input -> // ↩
+    | Step.Confirmation _, Some input -> // ↩
         { model with Model.CurrentStep.Input = ""; Model.Errors = Error.InputNotSupported input.Value :: model.Errors }
 
-    | Step.Confirmation, None -> model
+    | Step.Confirmation _, None -> model
 
 [<AutoOpen>]
 module private StartStep =
@@ -296,14 +328,14 @@ module private StartStep =
         model |> startStep (Step.BreakingChange(BreakingChange.searchable selectedEmoji selectedPrefix))
 
     let startConfirmationStep (model: Model) = // ↩
-        model |> startStep Step.Confirmation
+        model |> startStep (Step.Confirmation(determineCommitMessageTemplate model))
 
     let restartCurrentStep (model: Model) =
         match model.CurrentStep.Step with
         | Step.Prefix _ -> model |> startPrefixStep model.AvailablePrefixes
         | Step.Emoji _ -> model |> startEmojiStep model.AvailableEmojis
         | Step.BreakingChange _
-        | Step.Confirmation -> model
+        | Step.Confirmation _ -> model
 
 [<AutoOpen>]
 module private StepCompletion =
@@ -311,24 +343,24 @@ module private StepCompletion =
         match model.CompletedSteps with
         | [] ->
             model // ↩
-            |> startEmojiStep (Relation.emojisForPrefix selectedPrefix.Item)
             |> addCompletedStep (CompletedStep.Prefix selectedPrefix)
+            |> startEmojiStep (Relation.emojisForPrefix selectedPrefix.Item)
         | [ CompletedStep.Emoji selectedEmoji ] ->
             model // ↩
-            |> startBreakingChangeStep selectedEmoji.Item selectedPrefix.Item
             |> addCompletedStep (CompletedStep.Prefix selectedPrefix)
+            |> startBreakingChangeStep selectedEmoji.Item selectedPrefix.Item
         | _ -> failwith $"Unexpected state: cannot complete prefix step given completed steps %A{model.CompletedSteps}."
 
     let private completeEmojiStep (selectedEmoji: SearchItem<Emoji>) (model: Model) =
         match model.CompletedSteps with
         | [] ->
             model // ↩
-            |> startPrefixStep (Relation.prefixesForEmoji selectedEmoji.Item)
             |> addCompletedStep (CompletedStep.Emoji selectedEmoji)
+            |> startPrefixStep (Relation.prefixesForEmoji selectedEmoji.Item)
         | [ CompletedStep.Prefix selectedPrefix ] ->
             model // ↩
-            |> startBreakingChangeStep selectedEmoji.Item selectedPrefix.Item
             |> addCompletedStep (CompletedStep.Emoji selectedEmoji)
+            |> startBreakingChangeStep selectedEmoji.Item selectedPrefix.Item
         | _ -> failwith $"Unexpected state: cannot complete emoji step given completed steps %A{model.CompletedSteps}."
 
     let private completeBreakingChangeStep (breakingChange: SearchItem<BreakingChange>) (model: Model) =
@@ -344,9 +376,9 @@ module private StepCompletion =
                 | None -> failwith "Cannot complete breaking change step without a selected prefix."
 
         model // ↩
-        |> startConfirmationStep
         |> addCompletedStep (CompletedStep.BreakingChange breakingChange)
         |> addCompletedStep (CompletedStep.SemVerChange(SemVerChange.determine breakingChange.Item prefix.Item))
+        |> startConfirmationStep
 
     let private tryCompleteCurrentStep strategy (model: Model) =
         match model.CurrentStep.Step with
@@ -359,7 +391,7 @@ module private StepCompletion =
         | Step.BreakingChange _ -> model
 
         // The final step cannot be auto-completed, but it can be confirmed, with `Msg.ConfirmAllSelection`
-        | Step.Confirmation -> model
+        | Step.Confirmation _ -> model
 
     [<TailCall>]
     let rec tryCompleteManySteps strategy model =
@@ -370,7 +402,7 @@ module private StepCompletion =
         else
             tryCompleteManySteps ExactMatch completedModel // Try complete more steps in a row, but only for exact matches.
 
-    // TODO: Notice.AllStepsCompleted
+    // TODO ❗ Notice.AllStepsCompleted
     let noticeAllStepsCompleted (model: Model) = model
 
 let private handleMessage (msg: Msg) (model: Model) =
@@ -391,7 +423,7 @@ let private handleMessage (msg: Msg) (model: Model) =
         |> tryCompleteManySteps ExactMatch
     | ToggleFirstStepToEmoji, { Step = Step.Prefix _ } -> model |> startEmojiStep Emoji.All
     | ToggleFirstStepToEmoji, _ -> model
-    | ConfirmAllSelection, { Step = Step.Confirmation } -> model |> noticeAllStepsCompleted
+    | ConfirmAllSelection, { Step = Step.Confirmation _ } -> model |> noticeAllStepsCompleted
     | ConfirmAllSelection, _ -> model
     | Terminate, _ -> model // Termination is handled by the Elmish program
     | Undo, _ -> model // Undo msg is handled before: in the `update` function

@@ -100,7 +100,7 @@ module PrefixFirst =
 
                 return
                     match model.CurrentStep.Step with
-                    | Step.Confirmation ->
+                    | Step.Confirmation _ ->
                         // Pick the actual emoji: generated or directly auto-completed from the prefix
                         let emoji =
                             model.CompletedSteps
@@ -201,7 +201,7 @@ module EmojiFirst =
 
                 return
                     match model.CurrentStep.Step with
-                    | Step.Confirmation ->
+                    | Step.Confirmation _ ->
                         // Pick the actual prefix: generated or directly auto-completed from the emoji
                         let prefix =
                             model.CompletedSteps

@@ -860,7 +860,7 @@ module ``6_ determine semantic version change`` =
 
         actual |> shouldHave [ CompletedStepItem(CompletedStepItem.SemVerChange None) ]
 
-// TODO
+// TODO 🚧 7_ confirm selections
 // module ``7_ confirm selections`` =
 //     let private (|ModelReadyForConfirmation|) (prefix, emoji, breakingChange, semVerChange) =
 //         {
