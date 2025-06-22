@@ -33,7 +33,7 @@ module BreakingChange =
         |> SelectableList.init
 
     /// Determine the available breaking changes matching on the given emoji and prefix.
-    let determine emoji prefix : SelectableList<BreakingChange> =
+    let searchable emoji prefix : SelectableList<BreakingChange> =
         match emoji, prefix with
         | Emoji.Boom, _ -> selectableList [ BreakingChange.Yes ]
         | _, Prefix.Feat

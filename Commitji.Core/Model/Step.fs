@@ -12,6 +12,7 @@ type StepName =
     | Prefix
     | Emoji
     | BreakingChange
+    | SemVerChange
     | Confirmation
 
 [<RequireQualifiedAccess>]

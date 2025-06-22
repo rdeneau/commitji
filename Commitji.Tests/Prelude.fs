@@ -16,25 +16,20 @@ let private toSearchItem item : SearchItem<_> = { Item = item; Index = 0; Segmen
 let private replayCompletedSteps steps model =
     (model, steps)
     ||> List.fold (fun model step ->
-        match step with
-        | CompletedStep.Prefix prefix ->
-            match model.CurrentStep.Step with
-            | Step.Prefix _ -> model |> State.update (Msg.InputChanged prefix.Item.Code)
-            | _ -> model
-        | CompletedStep.Emoji emoji ->
-            match model.CurrentStep.Step with
-            | Step.Emoji _ -> model |> State.update (Msg.InputChanged emoji.Item.Code)
-            | _ -> model
-        | CompletedStep.BreakingChange breakingChange ->
-            match model.CurrentStep.Step with
-            | Step.BreakingChange _ -> model |> State.update (Msg.InputChanged breakingChange.Item.Code)
-            | _ -> model
+        match step,  model.CurrentStep.Step with
+        | CompletedStep.Prefix prefix , Step.Prefix _ -> model |> State.update (Msg.InputChanged prefix.Item.Code)
+        | CompletedStep.Prefix _, _ -> model
+        | CompletedStep.Emoji emoji , Step.Emoji _ -> model |> State.update (Msg.InputChanged emoji.Item.Code)
+        | CompletedStep.Emoji _,  _ -> model
+        | CompletedStep.BreakingChange breakingChange , Step.BreakingChange _ -> model |> State.update (Msg.InputChanged breakingChange.Item.Code)
+        | CompletedStep.BreakingChange _, _ -> model
+        | CompletedStep.SemVerChange _, _ -> model
     )
 
 module PrefixFirst =
     type PrefixSelectedOnly = PrefixSelectedOnly of Prefix * Model
     type PrefixEmojiSelectedOnly = PrefixEmojiSelectedOnly of Prefix * Emoji * Model
-    type PrefixEmojiBreakingChangeSelected = PrefixEmojiBreakingChangeSelected of Prefix * Emoji * BreakingChange * SemVerChange option * Model
+    type PrefixEmojiBreakingChangeSelected = PrefixEmojiBreakingChangeSelected of Prefix * Emoji * BreakingChange * Model
 
     let initial = State.init ()
 
@@ -105,7 +100,7 @@ module PrefixFirst =
 
                 return
                     match model.CurrentStep.Step with
-                    | Step.Confirmation(semVer, _) ->
+                    | Step.Confirmation ->
                         // Pick the actual emoji: generated or directly auto-completed from the prefix
                         let emoji =
                             model.CompletedSteps
@@ -125,7 +120,7 @@ module PrefixFirst =
                             )
 
                         match emoji, breakingChange with
-                        | Some emoji, Some breakingChange -> Some(PrefixEmojiBreakingChangeSelected(prefix, emoji.Item, breakingChange.Item, semVer, model))
+                        | Some emoji, Some breakingChange -> Some(PrefixEmojiBreakingChangeSelected(prefix, emoji.Item, breakingChange.Item, model))
                         | _ -> None
                     | _ -> None
             }
@@ -135,7 +130,7 @@ module PrefixFirst =
 module EmojiFirst =
     type EmojiSelectedOnly = EmojiSelectedOnly of Emoji * Model
     type EmojiPrefixSelectedOnly = EmojiPrefixSelectedOnly of Emoji * Prefix * Model
-    type EmojiPrefixBreakingChangeSelected = EmojiPrefixBreakingChangeSelected of Emoji * Prefix * BreakingChange * SemVerChange option * Model
+    type EmojiPrefixBreakingChangeSelected = EmojiPrefixBreakingChangeSelected of Emoji * Prefix * BreakingChange * Model
 
     let initial = State.init () |> State.update Msg.ToggleFirstStepToEmoji
 
@@ -206,7 +201,7 @@ module EmojiFirst =
 
                 return
                     match model.CurrentStep.Step with
-                    | Step.Confirmation(semVer, _) ->
+                    | Step.Confirmation ->
                         // Pick the actual prefix: generated or directly auto-completed from the emoji
                         let prefix =
                             model.CompletedSteps
@@ -226,7 +221,7 @@ module EmojiFirst =
                             )
 
                         match prefix, breakingChange with
-                        | Some prefix, Some breakingChange -> Some(EmojiPrefixBreakingChangeSelected(emoji, prefix.Item, breakingChange.Item, semVer, model))
+                        | Some prefix, Some breakingChange -> Some(EmojiPrefixBreakingChangeSelected(emoji, prefix.Item, breakingChange.Item, model))
                         | _ -> None
                     | _ -> None
             }
