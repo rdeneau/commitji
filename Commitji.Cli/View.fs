@@ -1,6 +1,7 @@
 ﻿module Commitji.Cli.View
 
 open System
+open System.Text.RegularExpressions
 open Commitji.Cli.Components
 open Commitji.Cli.Components.SelectionPrompt
 open Commitji.Cli.Components.Stepper
@@ -8,6 +9,18 @@ open Commitji.Core
 open Commitji.Core.Model
 open Commitji.Core.Model.Search
 open Spectre.Console
+
+[<RequireQualifiedAccess>]
+module private CommitMessageTemplate =
+    // To colorize #message and #explanation
+    let private formatHashtags (text: string) =
+        Regex.Replace(text, @"#\w+", (fun x -> Markup.applyMarkup "olive" x.Value))
+
+    let render text =
+        let grid = Grid().AddColumns(count = 2)
+
+        grid.AddRow(Markup.current " »", formatHashtags text) // ↩
+        |> AnsiConsole.Write
 
 [<RequireQualifiedAccess>]
 module private ErrorPanel =
@@ -188,14 +201,6 @@ module Stepper =
         ]
 
         AnsiConsole.WriteLine()
-
-[<RequireQualifiedAccess>]
-module private CommitMessageTemplate =
-    let render text =
-        let grid = Grid().AddColumns(count = 2)
-
-        grid.AddRow(Markup.current " »", text) // ↩
-        |> AnsiConsole.Write
 
 module private Render =
     let completedSteps (model: Model) =
