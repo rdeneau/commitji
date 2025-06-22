@@ -10,7 +10,9 @@
     <Compile Include="Components\SelectionPrompt.fs" />
     <Compile Include="Components\Stepper.fs" />
     <Compile Include="View.fs" />
-    <Compile Include="Program.fs" />
+    <Compile Include="Elmish\RingerBuffer.fs" />
+    <Compile Include="Elmish\Program.fs" />
+    <Compile Include="Main.fs" />
   </ItemGroup>
 
   <ItemGroup>
