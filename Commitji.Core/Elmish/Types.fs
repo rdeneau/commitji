@@ -17,7 +17,7 @@ type Step =
     | Prefix of SelectableList<Prefix>
     | Emoji of SelectableList<Emoji>
     | BreakingChange of SelectableList<BreakingChange>
-    | Confirmation
+    | Confirmation of commitMessageTemplate: string
 
 type CurrentStep = {
     Step: Step
@@ -81,8 +81,3 @@ type Msg =
     | ToggleSearchMode
     | Terminate
     | Undo
-
-// TODO: handle Notices
-type Notice =
-    | NoNotice
-    | AllStepsCompleted of commitMessageTemplate: string

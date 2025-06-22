@@ -21,7 +21,6 @@ module ``determine steps in the stepper`` =
                 StepName.Prefix, StepStatus.Current
                 StepName.Emoji, StepStatus.Pending
                 StepName.BreakingChange, StepStatus.Pending
-                StepName.SemVerChange, StepStatus.Pending
                 StepName.Confirmation, StepStatus.Pending
             ]
 
@@ -34,7 +33,6 @@ module ``determine steps in the stepper`` =
                 StepName.Prefix, StepStatus.Completed prefix.Code
                 StepName.Emoji, StepStatus.Current
                 StepName.BreakingChange, StepStatus.Pending
-                StepName.SemVerChange, StepStatus.Pending
                 StepName.Confirmation, StepStatus.Pending
             ]
 
