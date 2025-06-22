@@ -22,7 +22,6 @@ type Step =
 type CurrentStep = {
     Step: Step
     Input: string
-    Confirmed: bool
 }
 
 [<RequireQualifiedAccess>]
@@ -32,9 +31,18 @@ type CompletedStep =
     | BreakingChange of BreakingChange
 
 [<RequireQualifiedAccess>]
-type FirstStep =
-    | Prefix
-    | Emoji
+type Possibility =
+    | AcceptSelection
+    | ConfirmAllSelection
+    | SelectNext
+    | SelectPrevious
+    | Search of SearchMode
+    | SearchByNumber
+    | ToggleFirstStepToEmoji
+    | ToggleSearchMode of SearchMode
+    | Terminate
+    | Undo
+    // TODO: ToggleHints: show: '?', hide: [Echap]
 
 type Model = {
     CurrentStep: CurrentStep
@@ -49,24 +57,27 @@ type Model = {
     /// Remark: depend on the eventual prefix & emoji selected
     AvailableBreakingChanges: BreakingChange list
 
+    /// Remark: depend on the whole state
+    AvailablePossibilities: Possibility list
+
     SearchMode: SearchMode
 
     // TODO: to remove once the copy to clipboard is implemented
     PreviousFullCompletion: (Prefix * Emoji * BreakingChange) option
 
-// TODO: Backspace Key Hint Cases
-// TODO: Enter Key Hint Cases
-// TODO: Emoji Char Hint Optionality
-// TODO: BreakingChange Char Hint Optionality
+    History: Model list
 }
 
 type Msg =
     | AcceptSelection
+    | ConfirmAllSelection
     | SelectNext
     | SelectPrevious
     | InputChanged of input: string
     | ToggleFirstStepToEmoji
     | ToggleSearchMode
+    | Terminate
+    | Undo
 
 // TODO: handle Notices
 type Notice =
