@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Prelude.fs" />
     <Compile Include="Cli\MarkupShould.fs" />
     <Compile Include="Cli\SelectionPromptShould.fs" />
     <Compile Include="Cli\ViewShould.fs" />

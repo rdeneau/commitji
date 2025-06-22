@@ -2,15 +2,16 @@
 
 open Commitji.Cli.Components.Stepper
 open Commitji.Cli.View
-open Commitji.Core
 open Commitji.Core.Model
+open Commitji.Tests.FsCheckExtensions
 open FsCheck.Xunit
 open Swensen.Unquote
 open global.Xunit
 
 module ``determine steps in the stepper`` =
-    module ``starting selection by prefix`` =
-        let initial = State.init ()
+    [<Properties(Arbitrary = [| typeof<PrefixFirst.Arbitraries> |])>]
+    module ``1_ starting selection by prefix`` =
+        open PrefixFirst
 
         [<Fact>]
         let ``1_ [Prefix] > Emoji > BreakingChange > Confirmation`` () =
@@ -24,104 +25,90 @@ module ``determine steps in the stepper`` =
                 StepName.Confirmation, StepStatus.Pending
             ]
 
-        let (|PrefixSelectedOnly|) (prefix: Prefix) =
-            let model = initial |> State.update (Msg.InputChanged prefix.Code)
+        [<Property>]
+        let ``2_ Prefix✔️ > [Emoji] > BreakingChange > Confirmation`` (PrefixSelectedOnly(prefix, model)) =
+            let actual = Stepper.determineSteps model
 
-            let ok =
-                match model.CurrentStep.Step with
-                | Step.Emoji _ -> true
-                | _ -> false
-
-            ok, prefix, model
+            actual
+            =! [ // ↩
+                StepName.Prefix, StepStatus.Completed prefix.Code
+                StepName.Emoji, StepStatus.Current
+                StepName.BreakingChange, StepStatus.Pending
+                StepName.Confirmation, StepStatus.Pending
+            ]
 
         [<Property>]
-        let ``2_ Prefix✔️ > [Emoji] > BreakingChange > Confirmation`` (PrefixSelectedOnly(ok, prefix, model)) =
-            if ok then
-                let actual = Stepper.determineSteps model
+        let ``3_ Prefix✔️ > Emoji✔️ > [BreakingChange] > Confirmation`` (PrefixEmojiSelectedOnly(prefix, emoji, model)) =
+            let actual = Stepper.determineSteps model
 
-                actual
-                =! [ // ↩
-                    StepName.Prefix, StepStatus.Completed prefix.Code
-                    StepName.Emoji, StepStatus.Current
-                    StepName.BreakingChange, StepStatus.Pending
-                    StepName.Confirmation, StepStatus.Pending
-                ]
+            actual
+            =! [ // ↩
+                StepName.Prefix, StepStatus.Completed prefix.Code
+                StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
+                StepName.BreakingChange, StepStatus.Current
+                StepName.Confirmation, StepStatus.Pending
+            ]
 
-        let (|PrefixEmojiSelectedOnly|) (prefix: Prefix, emoji: Emoji) =
-            let result =
-                (initial, [ prefix.Code; emoji.Code ]) // ↩
-                ||> List.scan (fun model input -> model |> State.update (Msg.InputChanged input))
-                |> List.tryPick (fun model ->
-                    match model.CurrentStep.Step with
-                    | Step.BreakingChange _ ->
-                        model.CompletedSteps
-                        |> List.tryPick (
-                            function
-                            | CompletedStep.Emoji emoji -> Some (emoji, model)
-                            | _ -> None
-                        )
-                    | _ -> None
-                )
+        [<Property(MaxTest = 1000)>]
+        let ``4_ Prefix✔️ > Emoji✔️ > BreakingChange✔️ > Confirmation✔️`` (PrefixEmojiBreakingChangeSelected(prefix, emoji, breakingChange, semVer, model)) =
+            let actual = Stepper.determineSteps model
 
-            match result with
-            | None -> false, prefix, emoji, initial
-            | Some(emoji, model) -> true, prefix, emoji, model
+            actual
+            =! [ // ↩
+                StepName.Prefix, StepStatus.Completed prefix.Code
+                StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
+                StepName.BreakingChange, StepStatus.Completed breakingChange.Code
+                StepName.Confirmation, StepStatus.Completed(semVer |> Option.map _.Code |> Option.defaultValue "None")
+            ]
 
-        [<Property>]
-        let ``3_ Prefix✔️ > Emoji✔️ > [BreakingChange] > Confirmation`` (PrefixEmojiSelectedOnly(ok, prefix, emoji, model)) =
-            if ok then
-                let actual = Stepper.determineSteps model
+    [<Properties(Arbitrary = [| typeof<EmojiFirst.Arbitraries> |])>]
+    module ``2_ starting selection by emoji`` =
+        open EmojiFirst
 
-                actual
-                =! [ // ↩
-                    StepName.Prefix, StepStatus.Completed prefix.Code
-                    StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
-                    StepName.BreakingChange, StepStatus.Current
-                    StepName.Confirmation, StepStatus.Pending
-                ]
+        [<Fact>]
+        let ``1_ [Emoji] > Prefix > BreakingChange > Confirmation`` () =
+            let actual = Stepper.determineSteps initial
 
-        let (|PrefixEmojiBreakingChangeSelected|) (prefix: Prefix, emoji: Emoji, breakingChange: BreakingChange) =
-            let result =
-                (initial, [ prefix.Code; emoji.Code; breakingChange.Code ]) // ↩
-                ||> List.scan (fun model input -> model |> State.update (Msg.InputChanged input))
-                |> List.tryPick (fun model ->
-                    match model.CurrentStep.Step with
-                    | Step.Confirmation(semVer, _) ->
-                        let emoji =
-                            model.CompletedSteps
-                            |> List.tryPick (
-                                function
-                                | CompletedStep.Emoji emoji -> Some emoji
-                                | _ -> None
-                            )
-
-                        let breakingChange =
-                            model.CompletedSteps
-                            |> List.tryPick (
-                                function
-                                | CompletedStep.BreakingChange breakingChange -> Some breakingChange
-                                | _ -> None
-                            )
-
-                        match emoji, breakingChange with
-                        | Some emoji, Some breakingChange -> Some(emoji, breakingChange, semVer, model)
-                        | _ -> None
-                    | _ -> None
-                )
-
-            match result with
-            | None -> false, prefix, emoji, breakingChange, None, initial
-            | Some(emoji, breakingChange, semVer, model) -> true, prefix, emoji, breakingChange, semVer, model
+            actual
+            =! [ // ↩
+                StepName.Emoji, StepStatus.Current
+                StepName.Prefix, StepStatus.Pending
+                StepName.BreakingChange, StepStatus.Pending
+                StepName.Confirmation, StepStatus.Pending
+            ]
 
         [<Property>]
-        let ``4_ Prefix✔️ > Emoji✔️ > BreakingChange✔️ > Confirmation✔️`` (PrefixEmojiBreakingChangeSelected(ok, prefix, emoji, breakingChange, semVer, model)) =
-            if ok then
-                let actual = Stepper.determineSteps model
+        let ``2_ Emoji✔️ > [Prefix] > BreakingChange > Confirmation`` (EmojiSelectedOnly(emoji, model)) =
+            let actual = Stepper.determineSteps model
 
-                actual
-                =! [ // ↩
-                    StepName.Prefix, StepStatus.Completed prefix.Code
-                    StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
-                    StepName.BreakingChange, StepStatus.Completed breakingChange.Code
-                    StepName.Confirmation, StepStatus.Completed (semVer |> Option.map _.Code |> Option.defaultValue "None")
-                ]
+            actual
+            =! [ // ↩
+                StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
+                StepName.Prefix, StepStatus.Current
+                StepName.BreakingChange, StepStatus.Pending
+                StepName.Confirmation, StepStatus.Pending
+            ]
+
+        [<Property>]
+        let ``3_ Emoji✔️ > Prefix✔️ > [BreakingChange] > Confirmation`` (EmojiPrefixSelectedOnly(emoji, prefix, model)) =
+            let actual = Stepper.determineSteps model
+
+            actual
+            =! [ // ↩
+                StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
+                StepName.Prefix, StepStatus.Completed prefix.Code
+                StepName.BreakingChange, StepStatus.Current
+                StepName.Confirmation, StepStatus.Pending
+            ]
+
+        [<Property(MaxTest = 1000)>]
+        let ``4_ Emoji✔️ > Prefix✔️ > BreakingChange✔️ > Confirmation✔️`` (EmojiPrefixBreakingChangeSelected(emoji, prefix, breakingChange, semVer, model)) =
+            let actual = Stepper.determineSteps model
+
+            actual
+            =! [ // ↩
+                StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
+                StepName.Prefix, StepStatus.Completed prefix.Code
+                StepName.BreakingChange, StepStatus.Completed breakingChange.Code
+                StepName.Confirmation, StepStatus.Completed(semVer |> Option.map _.Code |> Option.defaultValue "None")
+            ]
