@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <Compile Include="Markup.fs" />
+    <Compile Include="Components\Panel.fs" />
     <Compile Include="Components\SelectionPrompt.fs" />
     <Compile Include="Components\Stepper.fs" />
     <Compile Include="View.fs" />
