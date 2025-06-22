@@ -17,9 +17,9 @@ module Stepper =
         let existingSteps = [
             for step in List.rev model.CompletedSteps do
                 match step with
-                | CompletedStep.Prefix prefix -> StepName.Prefix, StepStatus.Completed prefix.Code
-                | CompletedStep.Emoji emoji -> StepName.Emoji, StepStatus.Completed $"%s{emoji.Code} %s{emoji.Char}"
-                | CompletedStep.BreakingChange breakingChange -> StepName.BreakingChange, StepStatus.Completed breakingChange.Code
+                | CompletedStep.Prefix prefix -> StepName.Prefix, StepStatus.Completed prefix.Item.Code
+                | CompletedStep.Emoji emoji -> StepName.Emoji, StepStatus.Completed $"%s{emoji.Item.Code} %s{emoji.Item.Char}"
+                | CompletedStep.BreakingChange breakingChange -> StepName.BreakingChange, StepStatus.Completed breakingChange.Item.Code
 
             match model.CurrentStep.Step with
             | Step.Prefix _ -> StepName.Prefix, StepStatus.Current
@@ -126,20 +126,31 @@ module private HintPanel =
                 | Possibility.Undo, _ -> Hint($"""%s{Markup.keyStroke [ "Alt"; "Z" ]} %s{Markup.em "or"} %s{Markup.kbd "Backspace"}""", "Undo the last action ⏪") // TODO: indicate the last action (historizing the MSg)
         ]
 
-module private Render =
-    let private selectionPanel selection =
-        let panel =
-            Panel(
-                text = String.Join(Environment.NewLine, selection |> List.map (fun (itemType, itemText) -> $"• %s{itemType}: [green1]%s{itemText}[/]")), // ↩
-                Border = BoxBorder.Rounded,
-                Expand = true,
-                Header = PanelHeader("[bold green] ✔ Selection [/]")
-            )
-
-        AnsiConsole.Write(panel)
-
-    let private instruction text =
+module private Instruction =
+    let private render text =
         AnsiConsole.MarkupLine($"[bold cyan]?[/] [bold]%s{text}[/]")
+
+    let prefix () = render "Select a prefix for the commit message:"
+    let emoji () = render "Select an emoji for the commit message:"
+    let breakingChange () = render "Indicate if it's a breaking change:"
+    let confirmation () = render "Confirm your selection"
+
+module private Render =
+    let completedSteps (model: Model) =
+        for step in List.rev model.CompletedSteps do
+            match step with
+            | CompletedStep.Prefix prefix ->
+                Instruction.prefix ()
+                SelectionPrompt.render (currentChoiceIndex = 0) [ prefix.Segments ]
+                AnsiConsole.WriteLine()
+            | CompletedStep.Emoji emoji ->
+                Instruction.emoji ()
+                SelectionPrompt.render (currentChoiceIndex = 0) [ emoji.Segments ]
+                AnsiConsole.WriteLine()
+            | CompletedStep.BreakingChange breakingChange ->
+                Instruction.breakingChange ()
+                SelectionPrompt.render (currentChoiceIndex = 0) [ breakingChange.Segments ]
+                AnsiConsole.WriteLine()
 
     let private errors (model: Model) =
         match model.Errors with
@@ -164,28 +175,28 @@ module private Render =
     let currentStep (model: Model) =
         match model.CurrentStep.Step with
         | Step.Prefix prefixes ->
-            instruction "Select a prefix for the commit message:"
+            Instruction.prefix ()
             errors model
             SelectionPrompt.render (currentChoiceIndex = prefixes.Index) [ for prefix in prefixes.Items -> prefix.Segments ]
             AnsiConsole.WriteLine()
             HintPanel.render model
 
         | Step.Emoji emojis ->
-            instruction "Select an emoji for the commit message:"
+            Instruction.emoji ()
             errors model
             SelectionPrompt.render (currentChoiceIndex = emojis.Index) [ for emoji in emojis.Items -> emoji.Segments ]
             AnsiConsole.WriteLine()
             HintPanel.render model
 
         | Step.BreakingChange breakingChanges ->
-            instruction "Indicate if it's a breaking change:"
+            Instruction.breakingChange ()
             errors model
             SelectionPrompt.render (currentChoiceIndex = breakingChanges.Index) [ for breakingChanges in breakingChanges.Items -> breakingChanges.Segments ]
             AnsiConsole.WriteLine()
             HintPanel.render model
 
         | Step.Confirmation(_, invalidInput) ->
-            instruction "Confirm your selection"
+            Instruction.confirmation ()
             AnsiConsole.WriteLine()
 
             // TODO RDE: display the commit message
@@ -225,6 +236,7 @@ let render model dispatch =
     AnsiConsole.WriteLine()
 
     Stepper.render model
+    Render.completedSteps model
     Render.currentStep model
 
     AnsiConsole.Markup $"""%s{Markup.current "» "}Input: """
