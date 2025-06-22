@@ -66,8 +66,8 @@ module private Segments =
     let emoji segmentsConfig index (emoji: Emoji) =
         applyConfig segmentsConfig [ // ↩
             SegmentId.Number, index |> toNum
-            SegmentId.Code, $"%s{emoji.Code} %s{emoji.Char}"
-            SegmentId.Hint, emoji.Hint
+            SegmentId.Code, emoji.Code
+            SegmentId.Hint, $"%s{emoji.Char} %s{emoji.Hint}"
         ]
 
     let breakingChange segmentsConfig _ (breakingChange: BreakingChange) =

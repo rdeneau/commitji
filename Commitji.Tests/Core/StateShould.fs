@@ -64,7 +64,7 @@ module Search =
                 CodeHits(getCode, SearchInput.create input)
 
         let prefix = CodeHitsSource(fun (x: Prefix) -> x.Code)
-        let emoji = CodeHitsSource(fun (x: Emoji) -> $"%s{x.Code} %s{x.Char}")
+        let emoji = CodeHitsSource(fun (x: Emoji) -> x.Code)
 
 [<AutoOpen>]
 module Fixture =
