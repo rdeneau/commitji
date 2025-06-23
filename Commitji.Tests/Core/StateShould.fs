@@ -53,7 +53,7 @@ module Search =
                 Segments = [
                     {
                         Id = SegmentId.Code
-                        Text = SegmentText (getCode item)
+                        Text = SegmentText(getCode item)
                         State = SegmentState.Searched(hits, length)
                     }
                 ]

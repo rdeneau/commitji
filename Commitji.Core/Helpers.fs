@@ -8,7 +8,7 @@ module Map =
 
 [<RequireQualifiedAccess>]
 module Option =
-    let ofBool b =
+    let ofBool b = // ↩
         if b then Some() else None
 
 [<RequireQualifiedAccess>]
@@ -27,7 +27,7 @@ module Reflection =
 
 [<RequireQualifiedAccess>]
 module String =
-    let emptyIfNull (s: string) =
+    let emptyIfNull (s: string) = // ↩
         if isNull s then String.Empty else s
 
     /// String equality case-insensitive.
@@ -49,6 +49,6 @@ module String =
         let rec loop acc start =
             match s.IndexOf(value, start, comparison) with
             | -1 -> List.rev acc
-            | idx  -> loop (idx :: acc) (idx + value.Length)
+            | idx -> loop (idx :: acc) (idx + value.Length)
 
         loop [] 0

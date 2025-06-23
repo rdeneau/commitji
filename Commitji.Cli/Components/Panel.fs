@@ -20,7 +20,7 @@ type Panel =
         |> AnsiConsole.Write
 
     static member panel(icon, header, text) =
-        Panel.panel(icon, header, content = Markup(text))
+        Panel.panel (icon, header, content = Markup(text))
 
     static member errors errors =
         let title =
