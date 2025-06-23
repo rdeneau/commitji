@@ -2,7 +2,7 @@
 
 [<RequireQualifiedAccess>]
 module private Array =
-    let doubleSize index (items: 't array) = [|
+    let doubleSize index (items: 't array) = [| // ↩
         yield! items |> Seq.skip index
         yield! items |> Seq.take index
         yield! Array.zeroCreate items.Length

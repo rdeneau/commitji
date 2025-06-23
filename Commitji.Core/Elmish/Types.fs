@@ -19,10 +19,7 @@ type Step =
     | BreakingChange of SelectableList<BreakingChange>
     | Confirmation of commitMessageTemplate: string
 
-type CurrentStep = {
-    Step: Step
-    Input: string
-}
+type CurrentStep = { Step: Step; Input: string }
 
 [<RequireQualifiedAccess>]
 type CompletedStep =
@@ -43,7 +40,7 @@ type Possibility =
     | ToggleSearchMode of SearchMode
     | Terminate
     | Undo
-    // TODO 💡 ToggleHints: show: '?', hide: [Echap]
+// TODO 💡 ToggleHints: show: '?', hide: [Echap]
 
 [<RequireQualifiedAccess>]
 type Error = // ↩
