@@ -44,41 +44,40 @@ module private SegmentsConfiguration =
         | SearchMode.Custom(_, segmentsConfig) -> segmentsConfig
 
 [<RequireQualifiedAccess>]
-module private Segments =
-    let private applyConfig (segmentsConfig: SegmentsConfiguration) segments = [
-        for segmentId, segmentText in segments do
-            match Map.tryFind segmentId segmentsConfig.States with
-            | Some segmentState -> SearchSegment.create segmentId segmentText segmentState
-            | None -> ()
-    ]
-
-    let private toNum index = $"%i{index + 1}."
-
-    let prefix segmentsConfig index (prefix: Prefix) =
-        applyConfig segmentsConfig [ // ↩
-            SegmentId.Number, index |> toNum
-            SegmentId.Code, prefix.Code
-            SegmentId.Hint, prefix.Hint
-        ]
-
-    let emoji segmentsConfig index (emoji: Emoji) =
-        applyConfig segmentsConfig [ // ↩
-            SegmentId.Number, index |> toNum
-            SegmentId.Code, emoji.Code
-            SegmentId.Hint, $"%s{emoji.Char} %s{emoji.Hint}"
-        ]
-
-    let breakingChange segmentsConfig _ (breakingChange: BreakingChange) =
-        applyConfig segmentsConfig [ // ↩
-            SegmentId.Code, breakingChange.Code
-        ]
+module private SegmentText =
+    let number index = SegmentText $"%i{index + 1}."
 
 [<AutoOpen>]
 module Extensions =
     type SegmentsConfiguration with
-        member this.AsPrefixesSearch = Search(Segments.prefix this)
-        member this.AsEmojisSearch = Search(Segments.emoji this)
-        member this.AsBreakingChangesSearch = Search(Segments.breakingChange this)
+        member private this.InitSegments(segmentsProps) = [
+            for segmentId, segmentText in segmentsProps do
+                match this.States.TryFind(segmentId) with
+                | Some segmentState -> SearchSegment.create segmentId segmentText segmentState
+                | None -> ()
+        ]
+
+        member private this.ToSearch(getSegmentProps) =
+            Search(initSegmentsByIndex = (fun index item -> this.InitSegments(getSegmentProps index item)))
+
+        member this.AsPrefixesSearch =
+            this.ToSearch(fun index (prefix: Prefix) -> [ // ↩
+                SegmentId.Number, SegmentText.number index
+                SegmentId.Code, SegmentText prefix.Code
+                SegmentId.Hint, SegmentText prefix.Hint
+            ])
+
+        member this.AsEmojisSearch =
+            this.ToSearch(fun index (emoji: Emoji) -> [ // ↩
+                SegmentId.Number, SegmentText.number index
+                SegmentId.Code, SegmentText emoji.Code
+                SegmentId.Hint, SegmentText $"%s{emoji.Char} %s{emoji.Hint}"
+            ])
+
+        member this.AsBreakingChangesSearch =
+            this.ToSearch(fun _ (breakingChange: BreakingChange) -> [ // ↩
+                SegmentId.Code, SegmentText breakingChange.Code
+            ])
 
     type Model with
         member this.SegmentsConfiguration = SegmentsConfiguration.ofSearchMode this.SearchMode
@@ -124,10 +123,10 @@ module Extensions =
 
 [<RequireQualifiedAccess>]
 module SelectableList =
-    let searchedBy input (search: Search<'t, _>) items =
+    let searchedBy input (search: Search<'t>) items =
         search.Run(input, items, StringComparison.OrdinalIgnoreCase) |> SelectableList.init
 
-    let searchable (search: Search<'t, _>) items =
+    let searchable (search: Search<'t>) items =
         search.Init(items) |> SelectableList.init
 
     [<RequireQualifiedAccess>]

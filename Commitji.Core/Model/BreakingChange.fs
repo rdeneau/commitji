@@ -29,7 +29,7 @@ module BreakingChange =
 
     let private selectableList (breakingChanges: BreakingChange list) =
         breakingChanges
-        |> SearchableList.init (fun _ x -> [ SearchSegment.SearchableByStart(SegmentId.Code, x.Code) ])
+        |> SearchableList.init (fun _ x -> [ SearchSegment.SearchableByStart(SegmentId.Code, SegmentText x.Code) ])
         |> SelectableList.init
 
     /// Determine the available breaking changes matching on the given emoji and prefix.

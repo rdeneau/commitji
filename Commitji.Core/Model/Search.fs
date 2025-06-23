@@ -8,6 +8,13 @@ type SearchOperation =
     | StartsWith
     | Contains
 
+type SegmentText =
+    | SegmentText of string
+
+    member this.Value =
+        match this with
+        | SegmentText text -> text
+
 /// <remarks>
 /// This union could be split into two for a more precise modelling,
 /// to know when the search happened, but it's too much complexity in the end.
@@ -52,7 +59,7 @@ type SearchInput =
 
 type SearchSegment = {
     Id: SegmentId
-    Text: string
+    Text: SegmentText
     State: SegmentState
 }
 
@@ -102,15 +109,13 @@ module SearchableList =
             }
     ]
 
-type Search<'t, 'id>(initSegmentsByIndex: int -> 't -> SearchSegment list) =
+type Search<'t>(initSegmentsByIndex: int -> 't -> SearchSegment list) =
     let buildResult (searchItem: int -> 't -> SearchItem<'t> option) (items: 't list) =
-        // We call `searchItem` twice:
-        // 1. First to filter out items that do not match the search.
-        // 2. Second to the items with the right index.
         items
-        |> Seq.filter (fun item -> searchItem 0 item |> Option.isSome)
         |> Seq.indexed
         |> Seq.choose (fun (index, item) -> searchItem index item)
+        |> Seq.indexed
+        |> Seq.map (fun (index, item) -> { item with Index = index })
         |> Seq.toList
 
     let searchItem input comparison index item =
@@ -122,9 +127,9 @@ type Search<'t, 'id>(initSegmentsByIndex: int -> 't -> SearchSegment list) =
                 | SegmentState.Searchable location -> // Searchable, update state with search results
                     let hits =
                         match location with
-                        | SearchOperation.StartsWith when segment.Text.StartsWith(input, comparison) -> [ 0 ] // Match at the start
+                        | SearchOperation.StartsWith when segment.Text.Value.StartsWith(input, comparison) -> [ 0 ] // Match at the start
                         | SearchOperation.StartsWith -> [] // No match
-                        | SearchOperation.Contains -> segment.Text |> String.allIndexesOf input comparison
+                        | SearchOperation.Contains -> segment.Text.Value |> String.allIndexesOf input comparison
 
                     { segment with State = SegmentState.Searched(hits, length) }
 

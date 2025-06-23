@@ -25,7 +25,7 @@ module ``highlight segment`` =
     [<InlineData("feat", "at", 2, "fe[at]")>]
     let ``apply highlight on single hit`` text input hit expected =
         let segmentState = SegmentState.Searched([ hit ], String.length input)
-        let actual = highlightSegment text segmentState
+        let actual = highlightSegment (SegmentText text) segmentState
         actual =! expected
 
     [<Theory>]
@@ -33,7 +33,7 @@ module ``highlight segment`` =
     [<InlineData("nette", "t", 2, 3, "ne[t][t]e")>]
     let ``apply highlight on double hit`` text input hit1 hit2 expected =
         let segmentState = SegmentState.Searched([ hit1; hit2 ], String.length input)
-        let actual = highlightSegment text segmentState
+        let actual = highlightSegment (SegmentText text) segmentState
         actual =! expected
 
     [<Theory>]
@@ -41,7 +41,7 @@ module ``highlight segment`` =
     [<InlineData("abc", "ba")>]
     let ``apply no highlight if not found`` text input =
         let segmentState = SegmentState.Searched([], String.length input)
-        let actual = highlightSegment text segmentState
+        let actual = highlightSegment (SegmentText text) segmentState
         actual =! text
 
     [<Theory>]
@@ -49,5 +49,5 @@ module ``highlight segment`` =
     [<InlineData("z")>]
     let ``apply no highlight if not searchable`` text =
         let segmentState = SegmentState.NotSearchable
-        let actual = highlightSegment text segmentState
+        let actual = highlightSegment (SegmentText text) segmentState
         actual =! text

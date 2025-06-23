@@ -138,10 +138,10 @@ module private SemVerChange =
     let segments semVerChange = [
         match semVerChange with
         | None -> // ↩
-            SearchSegment.NotSearchable(SegmentId.Code, "None")
+            SearchSegment.NotSearchable(SegmentId.Code, SegmentText "None")
 
         | Some(semVerChange: SemVerChange) -> // ↩
-            SearchSegment.NotSearchable(SegmentId.Code, semVerChange.Code)
+            SearchSegment.NotSearchable(SegmentId.Code, SegmentText semVerChange.Code)
 
             let format =
                 match semVerChange with
@@ -149,7 +149,7 @@ module private SemVerChange =
                 | Minor -> __ + dot + up + dot + __
                 | Patch -> __ + dot + __ + dot + up
 
-            SearchSegment.NotSearchable(SegmentId.Hint, format)
+            SearchSegment.NotSearchable(SegmentId.Hint, SegmentText format)
     ]
 
 [<RequireQualifiedAccess>]

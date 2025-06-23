@@ -27,9 +27,9 @@ module Item =
 
         member item.ToSegmentText(segmentType) =
             match segmentType with
-            | SegmentId.Number -> item.Num
-            | SegmentId.Code -> item.Code
-            | SegmentId.Hint -> item.Label
+            | SegmentId.Number -> SegmentText item.Num
+            | SegmentId.Code -> SegmentText item.Code
+            | SegmentId.Hint -> SegmentText item.Label
 
         member item.ToSearchSegment(segmentType, state) = {
             Id = segmentType
@@ -176,7 +176,7 @@ module ``1_ init`` =
                     Segments = [
                         {
                             Id = SegmentId.Code
-                            Text = item.Code
+                            Text = SegmentText item.Code
                             State =
                                 match searchType with
                                 | Search.ByNum
@@ -203,7 +203,7 @@ module ``1_ init`` =
                     Segments = [
                         {
                             Id = SegmentId.Number
-                            Text = item.Num
+                            Text = SegmentText item.Num
                             State =
                                 match searchType with
                                 | Search.ByNum
@@ -214,7 +214,7 @@ module ``1_ init`` =
                         }
                         {
                             Id = SegmentId.Code
-                            Text = item.Code
+                            Text = SegmentText item.Code
                             State =
                                 match searchType with
                                 | Search.ByNum
@@ -225,7 +225,7 @@ module ``1_ init`` =
                         }
                         {
                             Id = SegmentId.Hint
-                            Text = item.Label
+                            Text = SegmentText item.Label
                             State =
                                 match searchType with
                                 | Search.FullText

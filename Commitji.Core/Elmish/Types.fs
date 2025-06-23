@@ -38,7 +38,7 @@ type Possibility =
     | SelectNext
     | SelectPrevious
     | Search of SearchMode
-    | SearchByNumber // TODO ❗ fix SearchByNumber
+    | SearchByNumber
     | ToggleFirstStepToEmoji
     | ToggleSearchMode of SearchMode
     | Terminate
