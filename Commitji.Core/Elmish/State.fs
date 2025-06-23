@@ -159,7 +159,6 @@ module Possibilities =
         let acceptedPossibilities =
             match msg with
             | AcceptSelection -> [ Possibility.AcceptSelection ]
-            | ConfirmAllSelection -> [ Possibility.ConfirmAllSelection ]
             | SelectNext -> [ Possibility.SelectNext ]
             | SelectPrevious -> [ Possibility.SelectPrevious ]
             | InputChanged _ -> [ Possibility.Search model.SearchMode; Possibility.SearchByNumber ]
@@ -401,9 +400,6 @@ module private StepCompletion =
         else
             tryCompleteManySteps ExactMatch completedModel // Try complete more steps in a row, but only for exact matches.
 
-    // TODO ❗ Notice.AllStepsCompleted
-    let noticeAllStepsCompleted (model: Model) = model
-
 let private handleMessage (msg: Msg) (model: Model) =
     match msg, model.CurrentStep with
     | InputChanged input, _ -> { model with Model.CurrentStep.Input = input } |> performSearch |> tryCompleteManySteps ExactMatch
@@ -422,8 +418,6 @@ let private handleMessage (msg: Msg) (model: Model) =
         |> tryCompleteManySteps ExactMatch
     | ToggleFirstStepToEmoji, { Step = Step.Prefix _ } -> model |> startEmojiStep Emoji.All
     | ToggleFirstStepToEmoji, _ -> model
-    | ConfirmAllSelection, { Step = Step.Confirmation _ } -> model |> noticeAllStepsCompleted
-    | ConfirmAllSelection, _ -> model
     | Terminate, _ -> model // Termination is handled by the Elmish program
     | Undo, _ -> model // Undo msg is handled before: in the `update` function
 
