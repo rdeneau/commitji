@@ -28,6 +28,7 @@ let highlightSegmentWith applyHighlight (segment: SearchSegment) =
     match segment.State with
     | SegmentState.NotSearchable
     | SegmentState.Searchable _
+    | SegmentState.Selected -> text
     | SegmentState.Searched(hits = []) -> text
     | SegmentState.Searched(length = 0) -> text
     | SegmentState.Searched(hits, n) ->

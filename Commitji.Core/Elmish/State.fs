@@ -10,8 +10,8 @@ type private MatchingStrategy =
 
 let private (|Match|_|) strategy ({ Items = items; Index = index }: SelectableList<'t>) =
     match strategy, items with
-    | FirstMatchAtIndex, list -> Some(list[index])
-    | ExactMatch, [ x ] -> Some x
+    | FirstMatchAtIndex, _ when index >= 0 && index < items.Length -> Some(items[index].AsSelected)
+    | ExactMatch, [ item ] -> Some item.AsSelected
     | _ -> None
 
 [<RequireQualifiedAccess>]

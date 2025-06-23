@@ -11,17 +11,15 @@ module private Gen =
     let mapFilterOption (g: Gen<'T option>) : Gen<'T> =
         g |> Gen.filter Option.isSome |> Gen.map Option.get
 
-let private toSearchItem item : SearchItem<_> = { Item = item; Index = 0; Segments = [] }
-
 let private replayCompletedSteps steps model =
     (model, steps)
     ||> List.fold (fun model step ->
-        match step,  model.CurrentStep.Step with
-        | CompletedStep.Prefix prefix , Step.Prefix _ -> model |> State.update (Msg.InputChanged prefix.Item.Code)
+        match step, model.CurrentStep.Step with
+        | CompletedStep.Prefix prefix, Step.Prefix _ -> model |> State.update (Msg.InputChanged prefix.Item.Code)
         | CompletedStep.Prefix _, _ -> model
-        | CompletedStep.Emoji emoji , Step.Emoji _ -> model |> State.update (Msg.InputChanged emoji.Item.Code)
-        | CompletedStep.Emoji _,  _ -> model
-        | CompletedStep.BreakingChange breakingChange , Step.BreakingChange _ -> model |> State.update (Msg.InputChanged breakingChange.Item.Code)
+        | CompletedStep.Emoji emoji, Step.Emoji _ -> model |> State.update (Msg.InputChanged emoji.Item.Code)
+        | CompletedStep.Emoji _, _ -> model
+        | CompletedStep.BreakingChange breakingChange, Step.BreakingChange _ -> model |> State.update (Msg.InputChanged breakingChange.Item.Code)
         | CompletedStep.BreakingChange _, _ -> model
         | CompletedStep.SemVerChange _, _ -> model
     )
@@ -41,7 +39,7 @@ module PrefixFirst =
                 let model =
                     initial
                     |> replayCompletedSteps [ // ↩
-                        CompletedStep.Prefix(toSearchItem prefix)
+                        CompletedStep.Prefix(SearchItem.init prefix)
                     ]
 
                 return
@@ -60,8 +58,8 @@ module PrefixFirst =
                 let model =
                     initial
                     |> replayCompletedSteps [ // ↩
-                        CompletedStep.Prefix(toSearchItem prefix)
-                        CompletedStep.Emoji(toSearchItem emoji)
+                        CompletedStep.Prefix(SearchItem.init prefix)
+                        CompletedStep.Emoji(SearchItem.init emoji)
                     ]
 
                 return
@@ -93,9 +91,9 @@ module PrefixFirst =
                 let model =
                     initial
                     |> replayCompletedSteps [ // ↩
-                        CompletedStep.Prefix(toSearchItem prefix)
-                        CompletedStep.Emoji(toSearchItem emoji)
-                        CompletedStep.BreakingChange(toSearchItem breakingChange)
+                        CompletedStep.Prefix(SearchItem.init prefix)
+                        CompletedStep.Emoji(SearchItem.init emoji)
+                        CompletedStep.BreakingChange(SearchItem.init breakingChange)
                     ]
 
                 return
@@ -142,7 +140,7 @@ module EmojiFirst =
                 let model =
                     initial
                     |> replayCompletedSteps [ // ↩
-                        CompletedStep.Emoji(toSearchItem emoji)
+                        CompletedStep.Emoji(SearchItem.init emoji)
                     ]
 
                 return
@@ -161,8 +159,8 @@ module EmojiFirst =
                 let model =
                     initial
                     |> replayCompletedSteps [ // ↩
-                        CompletedStep.Emoji(toSearchItem emoji)
-                        CompletedStep.Prefix(toSearchItem prefix)
+                        CompletedStep.Emoji(SearchItem.init emoji)
+                        CompletedStep.Prefix(SearchItem.init prefix)
                     ]
 
                 return
@@ -194,9 +192,9 @@ module EmojiFirst =
                 let model =
                     initial
                     |> replayCompletedSteps [ // ↩
-                        CompletedStep.Emoji(toSearchItem emoji)
-                        CompletedStep.Prefix(toSearchItem prefix)
-                        CompletedStep.BreakingChange(toSearchItem breakingChange)
+                        CompletedStep.Emoji(SearchItem.init emoji)
+                        CompletedStep.Prefix(SearchItem.init prefix)
+                        CompletedStep.BreakingChange(SearchItem.init breakingChange)
                     ]
 
                 return
