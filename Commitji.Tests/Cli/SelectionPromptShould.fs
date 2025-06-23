@@ -18,8 +18,8 @@ module ``handle 8 choices`` =
         }
 
         let private choice num code = [ // ↩
-            segment SegmentId.Number num
-            segment SegmentId.Code code
+            segment SegmentId.Number (SegmentText num)
+            segment SegmentId.Code (SegmentText code)
         ]
 
         let choices = [ // ↩

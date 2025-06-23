@@ -23,7 +23,7 @@ let keyStroke keyStroke =
     [ for k in keyStroke -> kbd k ] |> String.concat "+"
 
 let highlightSegmentWith applyHighlight (segment: SearchSegment) =
-    let text = segment.Text
+    let text = segment.Text.Value
 
     match segment.State with
     | SegmentState.NotSearchable
