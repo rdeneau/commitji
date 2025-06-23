@@ -40,7 +40,6 @@ type Possibility =
     | ToggleSearchMode of SearchMode
     | Terminate
     | Undo
-// TODO 💡 ToggleHints: show: '?', hide: [Echap]
 
 [<RequireQualifiedAccess>]
 type Error = // ↩
@@ -70,7 +69,6 @@ type Model = {
 
 type Msg =
     | AcceptSelection
-    | ConfirmAllSelection
     | SelectNext
     | SelectPrevious
     | InputChanged of input: string

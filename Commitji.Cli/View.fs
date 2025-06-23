@@ -9,6 +9,7 @@ open Commitji.Core
 open Commitji.Core.Model
 open Commitji.Core.Model.Search
 open Spectre.Console
+open TextCopy
 
 [<RequireQualifiedAccess>]
 module private CommitMessageTemplate =
@@ -257,7 +258,16 @@ module private Render =
 
         AnsiConsole.WriteLine()
 
-let private handleKeyPress (keyInfo: ConsoleKeyInfo) model dispatch =
+let private copyMessageToClipboard (model: Model) =
+    match model.CurrentStep.Step with
+    | Step.Confirmation commitMessageTemplate ->
+        ClipboardService.SetText commitMessageTemplate
+        AnsiConsole.WriteLine "✅"
+        AnsiConsole.MarkupLine(Markup.selected "Copied to the clipboard.")
+        AnsiConsole.WriteLine()
+    | _ -> AnsiConsole.MarkupLine(Markup.error "Cannot copy the commit message template: not in the confirmation step.")
+
+let private handleKeyPress (keyInfo: ConsoleKeyInfo) (model: Model) dispatch =
     match keyInfo.Key, keyInfo.Modifiers, keyInfo.KeyChar with
     | ConsoleKey.Backspace, _, _
     | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'z' -> dispatch Undo // 💡 We can use [Alt]+[Z] when [Ctrl]+[Z] is caught by the terminal
@@ -268,7 +278,7 @@ let private handleKeyPress (keyInfo: ConsoleKeyInfo) model dispatch =
         | Step.Prefix _
         | Step.Emoji _
         | Step.BreakingChange _ -> dispatch AcceptSelection
-        | Step.Confirmation _ -> dispatch ConfirmAllSelection
+        | Step.Confirmation _ -> copyMessageToClipboard model
     | ConsoleKey.Escape, _, _ -> dispatch ToggleSearchMode
     | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'f' -> dispatch ToggleSearchMode // 💡 We can use [Alt]+[F] when [Ctrl]+[F] is caught by the terminal
     | _, ConsoleModifiers.Control, 'c' -> dispatch Terminate
