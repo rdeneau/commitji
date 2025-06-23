@@ -35,7 +35,7 @@ let private All = [
     Emoji.Dizzy, Prefix.Feat
     Emoji.Dizzy, Prefix.Fix
     Emoji.Recycle, Prefix.Refactor
-    Emoji.Art, Prefix.Refactor
+    Emoji.ArtistPalette, Prefix.Refactor
     Emoji.Fire, Prefix.Refactor
     Emoji.Truck, Prefix.Refactor
     Emoji.BuildingConstruction, Prefix.Refactor
@@ -59,7 +59,7 @@ let private All = [
     Emoji.HeavyPlusSign, Prefix.Chore
     Emoji.HeavyMinusSign, Prefix.Chore
     Emoji.Wrench, Prefix.Chore
-    Emoji.Pencil2, Prefix.Chore
+    Emoji.Pencil, Prefix.Chore
     Emoji.TwistedRightwardsArrows, Prefix.Chore
     Emoji.Rewind, Prefix.Chore
     Emoji.Rewind, Prefix.Revert
@@ -95,6 +95,8 @@ let private All = [
     Emoji.MonocleFace, Prefix.Wip
     Emoji.Bricks, Prefix.Feat
     Emoji.Bricks, Prefix.Chore
+    Emoji.Broom, Prefix.Chore
+    Emoji.Broom, Prefix.Refactor
 ]
 
 let emojisForPrefix selectedPrefix =

@@ -277,6 +277,10 @@ module Fixture =
                 // .. 0         1         2
                 // .. 01234567890123456789012345
 
+                // ..             ↓
+                // .. artist_palette
+                Emoji.ArtistPalette, [ 12 ]
+
                 // ..                  ↓
                 // .. busts_in_silhouette
                 Emoji.BustsInSilhouette, [ 17 ]
@@ -391,8 +395,8 @@ module Fixture =
 
     [<RequireQualifiedAccess>]
     type MinInputToMatchExactlyOneEmojiAndManyPrefixes =
-        | Ale
         | Boom
+        | Bro
         | Cam
         | Diz
         | Mono
@@ -401,8 +405,8 @@ module Fixture =
 
     let (|MinInputWithMatchingEmojiWithManyPrefixes|) =
         function
-        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Ale -> "ale", Emoji.Alembic, [ Prefix.Feat; Prefix.Chore; Prefix.Wip ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Boom -> "boom", Emoji.Boom, [ Prefix.Feat; Prefix.Fix ]
+        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Bro -> "bro", Emoji.Broom, [ Prefix.Refactor; Prefix.Chore ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Cam -> "cam", Emoji.CameraFlash, [ Prefix.Test; Prefix.Chore; Prefix.Docs ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Diz -> "diz", Emoji.Dizzy, [ Prefix.Feat; Prefix.Fix ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Mono -> "mono", Emoji.MonocleFace, [ Prefix.Chore; Prefix.Wip ]
@@ -429,7 +433,7 @@ module Fixture =
 
         match input with
         | MinInputToMatchExactlyOnePrefixAndManyEmojis.C ->
-            result Chore [
+            result Prefix.Chore [
                 Emoji.Alembic
                 Emoji.Alien
                 Emoji.ArrowDown
@@ -437,6 +441,7 @@ module Fixture =
                 Emoji.Bento
                 Emoji.Bookmark
                 Emoji.Bricks
+                Emoji.Broom
                 Emoji.CameraFlash
                 Emoji.CardFileBox
                 Emoji.ClosedLockWithKey
@@ -450,7 +455,7 @@ module Fixture =
                 Emoji.MonocleFace
                 Emoji.Mute
                 Emoji.Package
-                Emoji.Pencil2
+                Emoji.Pencil
                 Emoji.Pushpin
                 Emoji.Rewind
                 Emoji.Rocket
@@ -463,7 +468,7 @@ module Fixture =
                 Emoji.Wrench
             ]
         | MinInputToMatchExactlyOnePrefixAndManyEmojis.D ->
-            result Docs [
+            result Prefix.Docs [
                 Emoji.Bulb
                 Emoji.BustsInSilhouette
                 Emoji.CameraFlash
@@ -472,7 +477,7 @@ module Fixture =
                 Emoji.PageFacingUp
             ]
         | MinInputToMatchExactlyOnePrefixAndManyEmojis.Fe ->
-            result Feat [
+            result Prefix.Feat [
                 Emoji.Airplane
                 Emoji.Alembic
                 Emoji.Boom
@@ -498,7 +503,7 @@ module Fixture =
                 Emoji.Wheelchair
             ]
         | MinInputToMatchExactlyOnePrefixAndManyEmojis.Fi ->
-            result Fix [
+            result Prefix.Fix [
                 Emoji.AdhesiveBandage
                 Emoji.Ambulance
                 Emoji.Boom
@@ -511,13 +516,14 @@ module Fixture =
                 Emoji.RotatingLight
             ]
         | MinInputToMatchExactlyOnePrefixAndManyEmojis.P ->
-            result Perf [
+            result Prefix.Perf [
                 Emoji.Thread // ↩
                 Emoji.Zap
             ]
         | MinInputToMatchExactlyOnePrefixAndManyEmojis.Ref ->
-            result Refactor [
-                Emoji.Art
+            result Prefix.Refactor [
+                Emoji.ArtistPalette
+                Emoji.Broom
                 Emoji.BuildingConstruction
                 Emoji.Coffin
                 Emoji.Fire
@@ -527,7 +533,7 @@ module Fixture =
                 Emoji.Wastebasket
             ]
         | MinInputToMatchExactlyOnePrefixAndManyEmojis.T ->
-            result Test [
+            result Prefix.Test [
                 Emoji.CameraFlash
                 Emoji.ClownFace
                 Emoji.Seedling
@@ -535,7 +541,7 @@ module Fixture =
                 Emoji.WhiteCheckMark
             ]
         | MinInputToMatchExactlyOnePrefixAndManyEmojis.W ->
-            result Wip [
+            result Prefix.Wip [
                 Emoji.Alembic
                 Emoji.Beers
                 Emoji.Construction
