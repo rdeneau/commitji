@@ -1,0 +1,55 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ApplicationIcon>..\..\Commitji.ico</ApplicationIcon>
+
+    <!-- Don't create localization (en-US, etc) folders with resources -->
+    <!-- https://github.com/dotnet/fsharp/issues/6007#issuecomment-547041463 -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>True</PackAsTool>
+    <PackageIcon>Commitji.png</PackageIcon>
+    <PackageOutputPath>./nupkg</PackageOutputPath>
+    <ToolCommandName>commitji</ToolCommandName>
+    <Title>Commitji</Title>
+    <Authors>Romain Deneau</Authors>
+    <Description>UI to facilitate the writing of conventional commit messages, a kind of lightweight Commitizen UI combined with Gitmoji.</Description>
+    <RepositoryUrl>https://github.com/rdeneau/commitji</RepositoryUrl>
+    <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Markup.fs"/>
+    <Compile Include="Components\Panel.fs"/>
+    <Compile Include="Components\SelectionPrompt.fs"/>
+    <Compile Include="Components\Stepper.fs"/>
+    <Compile Include="View.fs"/>
+    <Compile Include="Elmish\RingerBuffer.fs"/>
+    <Compile Include="Elmish\Program.fs"/>
+    <Compile Include="Main.fs"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Spectre.Console" Version="0.50.0"/>
+    <PackageReference Include="Spectre.Console.Cli" Version="0.50.0"/>
+    <PackageReference Include="TextCopy" Version="6.2.1"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Commitji.Core\Commitji.Core.fsproj"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\Commitji.ico">
+      <Link>Commitji.ico</Link>
+    </None>
+    <None Include="..\..\Commitji.png">
+      <Pack>True</Pack>
+      <PackagePath>.</PackagePath>
+      <Link>Commitji.png</Link>
+    </None>
+  </ItemGroup>
+
+</Project>

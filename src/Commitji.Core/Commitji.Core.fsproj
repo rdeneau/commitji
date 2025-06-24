@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Helpers.fs"/>
+    <Compile Include="Model\Emoji.fs"/>
+    <Compile Include="Model\Prefix.fs"/>
+    <Compile Include="Model\Relation.fs"/>
+    <Compile Include="Model\SegmentId.fs"/>
+    <Compile Include="Model\Search.fs"/>
+    <Compile Include="Model\SelectableList.fs"/>
+    <Compile Include="Model\BreakingChange.fs"/>
+    <Compile Include="Model\SemVerChange.fs"/>
+    <Compile Include="Model\Step.fs"/>
+    <Compile Include="Elmish\Types.fs"/>
+    <Compile Include="Elmish\State.fs"/>
+  </ItemGroup>
+
+</Project>

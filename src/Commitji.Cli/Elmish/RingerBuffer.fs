@@ -11,7 +11,7 @@ module private Array =
 [<Struct>]
 type internal RingState<'t> =
     | Writable of items: 't array * index: int
-    | ReadWritable of items: 't array * writeIndex: int * readIndex: int
+    | ReadWritable of items': 't array * writeIndex: int * readIndex: int
 
 type internal RingBuffer<'t>(size) =
     let mutable state: RingState<'t> = Writable(Array.zeroCreate (max size 10), 0)

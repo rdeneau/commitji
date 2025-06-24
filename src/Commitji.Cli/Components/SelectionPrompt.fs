@@ -111,7 +111,7 @@ type SelectionPrompt(?halfPageSize) =
                 let grid =
                     (Grid(), model.segmentIds)
                     ||> List.fold (fun grid segmentType ->
-                        let column = GridColumn().NoWrap()
+                        let column = GridColumn(NoWrap = true)
 
                         match segmentType with
                         | SegmentId.Number -> column.Alignment <- Justify.Right

@@ -51,3 +51,7 @@ At any time, you can press:
 ## Installation
 
 🚧 TODO
+
+## Additional resources 🔗
+
+- [Emojipedia](https://emojipedia.org/)
