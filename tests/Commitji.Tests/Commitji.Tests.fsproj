@@ -1,8 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <IsPackable>false</IsPackable>
+    <OutputType>Library</OutputType>
     <GenerateProgramFile>false</GenerateProgramFile>
     <RootNamespace>Commitji.Tests</RootNamespace>
   </PropertyGroup>
@@ -27,8 +28,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Commitji.Cli\Commitji.Cli.fsproj" />
-    <ProjectReference Include="..\Commitji.Core\Commitji.Core.fsproj" />
+    <ProjectReference Include="..\..\src\Commitji.Cli\Commitji.Cli.fsproj" />
+    <ProjectReference Include="..\..\src\Commitji.Core\Commitji.Core.fsproj" />
   </ItemGroup>
 
 </Project>
