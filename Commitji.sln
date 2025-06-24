@@ -8,7 +8,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.gitignore = .gitignore
 		NuGet.config = NuGet.config
 		.gitattributes = .gitattributes
+		build.fsx = build.fsx
 		.config\dotnet-tools.json = .config\dotnet-tools.json
+		CHANGELOG.md = CHANGELOG.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{CDBA953C-868C-4FCD-9840-B3C99669167D}"
