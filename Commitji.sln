@@ -30,7 +30,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{6053C857-8DC8-4CC0-9EE8-089109CFE118}"
 	ProjectSection(SolutionItems) = preProject
 		.github\workflows\publish-nuget.yml = .github\workflows\publish-nuget.yml
-		.github\workflows\semantic-release.yml = .github\workflows\semantic-release.yml
 	EndProjectSection
 EndProject
 Global
