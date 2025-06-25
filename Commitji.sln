@@ -25,13 +25,6 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Commitji.Core", "src\Commit
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Commitji.Tests", "tests\Commitji.Tests\Commitji.Tests.fsproj", "{5516ADCE-FAE0-404C-A406-130B16739901}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{D1B6D6A0-8AC4-4227-9DA6-45A8CB59CF59}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{6053C857-8DC8-4CC0-9EE8-089109CFE118}"
-	ProjectSection(SolutionItems) = preProject
-		.github\workflows\publish-nuget.yml = .github\workflows\publish-nuget.yml
-	EndProjectSection
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +48,5 @@ Global
 		{B342D60E-5746-42F8-A589-14C7AC6D4BD4} = {CDBA953C-868C-4FCD-9840-B3C99669167D}
 		{2617835A-3C09-48B6-9342-19BFE845E4C8} = {CDBA953C-868C-4FCD-9840-B3C99669167D}
 		{5516ADCE-FAE0-404C-A406-130B16739901} = {A6AA0F4E-248C-40DB-AD2D-C1B3E2EDDA52}
-		{6053C857-8DC8-4CC0-9EE8-089109CFE118} = {D1B6D6A0-8AC4-4227-9DA6-45A8CB59CF59}
 	EndGlobalSection
 EndGlobal
