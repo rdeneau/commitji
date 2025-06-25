@@ -18,7 +18,6 @@ on:
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
   DOTNET_NOLOGO: true
-  NuGetDirectory: ${{ github.workspace }}/nuget
 
 defaults:
   run:
@@ -26,6 +25,7 @@ defaults:
 
 jobs:
   run_test:
+    name: "🧪 Run Tests"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,67 +34,27 @@ jobs:
       - name: Run tests
         run: dotnet test --configuration Release
 
-  create_nuget:
+  semantic_nuget_release:
+    name: "🚀 Semantic NuGet Release"
     runs-on: ubuntu-latest
     needs: [ run_test ]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Get all history to allow automatic versioning using MinVer
-
-      # Install the .NET SDK indicated in the global.json file
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-
-      # Create the NuGet package in the folder from the environment variable NuGetDirectory
-      - run: dotnet pack --configuration Release --output ${{ env.NuGetDirectory }}
-
-      # Publish the NuGet package as an artifact, so they can be used in the following jobs
-      - uses: actions/upload-artifact@v4
-        with:
-          name: nuget
-          if-no-files-found: error
-          retention-days: 7
-          path: ${{ env.NuGetDirectory }}/*.nupkg
-
-  semantic_release:
-    runs-on: ubuntu-latest
-    needs: [ create_nuget ]
     permissions:
       contents: write
       packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install exec plugin
+        run: npm install @semantic-release/exec -D
+
+      # Install the .NET SDK indicated in the global.json file
+      # Required by the commands run by the exec plugin
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+
       - name: Semantic Release
         uses: cycjimmy/semantic-release-action@v4
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # Optional, if you also publish to npm
-
-  deploy:
-    # Publish only when creating a GitHub Release
-    # https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository
-    # You can update this logic if you want to manage releases differently
-    if: github.event_name == 'release'
-    runs-on: ubuntu-latest
-    needs: [ run_test ]
-    steps:
-      # Download the NuGet package created in the previous job
-      - uses: actions/download-artifact@v4
-        with:
-          name: nuget
-          path: ${{ env.NuGetDirectory }}
-
-      # Install the .NET SDK indicated in the global.json file
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v4
-
-      # Publish all NuGet packages to NuGet.org
-      # Use --skip-duplicate to prevent errors if a package with the same version already exists.
-      # If you retry a failed workflow, already published packages will be skipped without error.
-      - name: Publish NuGet package
-        run: |
-          foreach($file in (Get-ChildItem "${{ env.NuGetDirectory }}" -Recurse -Include *.nupkg)) {
-              dotnet nuget push $file --api-key "${{ secrets.NUGET_APIKEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
-          }
+          NUGET_KEY: ${{ secrets.NUGET_KEY }}

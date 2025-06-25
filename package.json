@@ -27,5 +27,8 @@
   "bugs": {
     "url": "https://github.com/rdeneau/commitji/issues"
   },
-  "homepage": "https://github.com/rdeneau/commitji#readme"
+  "homepage": "https://github.com/rdeneau/commitji#readme",
+  "devDependencies": {
+    "@semantic-release/exec": "^7.1.0"
+  }
 }

@@ -31,10 +31,12 @@ artifacts/
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
 
-# NuGet Packages
+# NuGet (Symbol) Packages
 *.nupkg
-# NuGet Symbol Packages
 *.snupkg
+
+# npm packages
+node_modules/
 
 # Others
 ~$*
