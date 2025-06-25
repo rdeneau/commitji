@@ -1,6 +1,6 @@
 # Commitji
 
-![Commitji](Commitji.png)
+![Commitji](https://github.com/rdeneau/commitji/raw/main/Commitji.png)
 
 > Kind of lightweight [Commitizen](https://commitizen.github.io/cz-cli/) combined with [Gitmoji](https://gitmoji.dev/)
 > to facilitate writing conventional commit messages closed to [Angular Commit Message Conventions](https://github.com/angular/angular/blob/main/contributing-docs/commit-message-guidelines.md)
