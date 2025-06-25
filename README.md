@@ -6,6 +6,8 @@
 > to facilitate writing conventional commit messages closed to [Angular Commit Message Conventions](https://github.com/angular/angular/blob/main/contributing-docs/commit-message-guidelines.md)
 > supported by [semantic release](https://semantic-release.gitbook.io/semantic-release).
 
+[![NuGet Version](https://img.shields.io/nuget/v/Commitji)](https://www.nuget.org/packages/Commitji)
+
 ## Usage
 
 ### Steps

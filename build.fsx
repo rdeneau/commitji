@@ -1,3 +1,6 @@
+// Source: https://github.com/fsprojects/fantomas
+// TODO: verify if we need it, otherwise remove it
+
 #r "nuget: Fun.Build, 1.0.3"
 #r "nuget: CliWrap, 3.6.4"
 #r "nuget: FSharp.Data, 6.3.0"
