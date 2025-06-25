@@ -4,15 +4,18 @@
     <TargetFramework>net8.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <ApplicationIcon>..\..\Commitji.ico</ApplicationIcon>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
     <!-- Don't create localization (en-US, etc) folders with resources -->
     <!-- https://github.com/dotnet/fsharp/issues/6007#issuecomment-547041463 -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
     <IsPackable>true</IsPackable>
     <PackAsTool>True</PackAsTool>
     <PackageIcon>Commitji.png</PackageIcon>
-    <PackageLicenseExpression>GPL-3.0</PackageLicenseExpression>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
     <PackageOutputPath>./nupkg</PackageOutputPath>
+    <PackageProjectUrl>https://github.com/rdeneau/commitji</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>DotnetTool ConventionalCommit Emoji Gitmoji SemanticRelease SemanticVersion SemVer</PackageTags>
     <PackageType>DotnetTool</PackageType>
@@ -24,6 +27,18 @@
     <RepositoryUrl>https://github.com/rdeneau/commitji</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
+
+    <!-- NuGet Package Validation -->
+    <!-- https://www.meziantou.net/publishing-a-nuget-package-following-best-practices-using-github.htm -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <ContinuouslntegrationBuild>true</ContinuouslntegrationBuild>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <MinimumMSBuildVersion>16.10.0</MinimumMSBuildVersion>
+    <GenerateSBOM>true</GenerateSBOM>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <Optimize>true</Optimize>
   </PropertyGroup>
 
   <ItemGroup>
@@ -38,6 +53,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Sbom.Targets" Version="4.0.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Spectre.Console" Version="0.50.0"/>
     <PackageReference Include="Spectre.Console.Cli" Version="0.50.0"/>
     <PackageReference Include="TextCopy" Version="6.2.1"/>
@@ -57,9 +76,9 @@
       <PackagePath>.</PackagePath>
       <Link>Commitji.png</Link>
     </None>
-    <Content Include="..\..\README.md">
+    <None Include="..\..\README.md" Pack="true" PackagePath=".">
       <Link>README.md</Link>
-    </Content>
+    </None>
   </ItemGroup>
 
 </Project>

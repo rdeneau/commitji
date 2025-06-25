@@ -1,0 +1,31 @@
+{
+  "name": "commitji",
+  "version": "1.0.0",
+  "description": "Kind of lightweight combination of Commitizen and Gitmoji to facilitate the writing of conventional commit messages with an emoji and compatible with semantic release.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rdeneau/commitji.git"
+  },
+  "keywords": [
+    "DotnetTool",
+    "ConventionalCommit",
+    "Emoji",
+    "Gitmoji",
+    "SemanticRelease",
+    "SemanticVersion",
+    "SemVer"
+  ],
+  "author": "Romain Deneau",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/rdeneau/commitji/issues"
+  },
+  "homepage": "https://github.com/rdeneau/commitji#readme"
+}

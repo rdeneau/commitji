@@ -1,8 +1,22 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TargetFramework>net8.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- Don't create localization (en-US, etc) folders with resources -->
+    <!-- https://github.com/dotnet/fsharp/issues/6007#issuecomment-547041463 -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
+    <!-- NuGet Package Validation -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <ContinuouslntegrationBuild>true</ContinuouslntegrationBuild>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <MinimumMSBuildVersion>16.10.0</MinimumMSBuildVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <Optimize>true</Optimize>
   </PropertyGroup>
 
   <ItemGroup>
