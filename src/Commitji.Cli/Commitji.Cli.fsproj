@@ -11,12 +11,18 @@
     <IsPackable>true</IsPackable>
     <PackAsTool>True</PackAsTool>
     <PackageIcon>Commitji.png</PackageIcon>
+    <PackageLicenseExpression>GPL-3.0</PackageLicenseExpression>
     <PackageOutputPath>./nupkg</PackageOutputPath>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>DotnetTool ConventionalCommit Emoji Gitmoji SemanticRelease SemanticVersion SemVer</PackageTags>
+    <PackageType>DotnetTool</PackageType>
     <ToolCommandName>commitji</ToolCommandName>
-    <Title>Commitji</Title>
+
     <Authors>Romain Deneau</Authors>
-    <Description>UI to facilitate the writing of conventional commit messages, a kind of lightweight Commitizen UI combined with Gitmoji.</Description>
+    <Copyright>Copyright © $([System.DateTime]::UtcNow.Year)</Copyright>
+    <Description>Kind of lightweight combination of Commitizen and Gitmoji to facilitate the writing of conventional commit messages with an emoji and compatible with semantic release.</Description>
     <RepositoryUrl>https://github.com/rdeneau/commitji</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
   </PropertyGroup>
 
@@ -44,12 +50,16 @@
   <ItemGroup>
     <None Include="..\..\Commitji.ico">
       <Link>Commitji.ico</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\..\Commitji.png">
       <Pack>True</Pack>
       <PackagePath>.</PackagePath>
       <Link>Commitji.png</Link>
     </None>
+    <Content Include="..\..\README.md">
+      <Link>README.md</Link>
+    </Content>
   </ItemGroup>
 
 </Project>
