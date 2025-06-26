@@ -8,7 +8,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".", ".", "{21D6D609-A9EF-43
 		.gitignore = .gitignore
 		NuGet.config = NuGet.config
 		.gitattributes = .gitattributes
-		build.fsx = build.fsx
 		.config\dotnet-tools.json = .config\dotnet-tools.json
 		release.config.mjs = release.config.mjs
 		package.json = package.json
@@ -23,6 +22,8 @@ EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Commitji.Core", "src\Commitji.Core\Commitji.Core.fsproj", "{2617835A-3C09-48B6-9342-19BFE845E4C8}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Commitji.Tests", "tests\Commitji.Tests\Commitji.Tests.fsproj", "{5516ADCE-FAE0-404C-A406-130B16739901}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Build", "Build\Build.fsproj", "{BABB853B-4E75-4C81-9E20-4D62E70A0C0C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -42,10 +43,15 @@ Global
 		{5516ADCE-FAE0-404C-A406-130B16739901}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5516ADCE-FAE0-404C-A406-130B16739901}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5516ADCE-FAE0-404C-A406-130B16739901}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BABB853B-4E75-4C81-9E20-4D62E70A0C0C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BABB853B-4E75-4C81-9E20-4D62E70A0C0C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BABB853B-4E75-4C81-9E20-4D62E70A0C0C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BABB853B-4E75-4C81-9E20-4D62E70A0C0C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{B342D60E-5746-42F8-A589-14C7AC6D4BD4} = {CDBA953C-868C-4FCD-9840-B3C99669167D}
 		{2617835A-3C09-48B6-9342-19BFE845E4C8} = {CDBA953C-868C-4FCD-9840-B3C99669167D}
 		{5516ADCE-FAE0-404C-A406-130B16739901} = {A6AA0F4E-248C-40DB-AD2D-C1B3E2EDDA52}
+		{BABB853B-4E75-4C81-9E20-4D62E70A0C0C} = {21D6D609-A9EF-43C4-A483-42A42669F285}
 	EndGlobalSection
 EndGlobal
