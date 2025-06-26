@@ -1,12 +1,13 @@
 ﻿// Adapted from Fantomas: https://github.com/fsprojects/fantomas
 
 // Usage:
-// - Help:              dotnet run --project .\Build --no-restore -- -h
-// - FormatAll:         dotnet run --project .\Build --no-restore -- -p FormatAll
-// - FormatChanged:     dotnet run --project .\Build --no-restore -- -p FormatChanged
-// - Build (default):   dotnet run --project .\Build --no-restore
-// - PushClient:        dotnet run --project .\Build --no-restore -- -p PushClient
-// - PublishAlpha:      dotnet run --project .\Build --no-restore -- -p PublishAlpha
+// - Run (default): dotnet run --project .\Build --no-restore
+// - Help:          dotnet run --project .\Build --no-restore -- -h
+// - FormatAll:     dotnet run --project .\Build --no-restore -- -p FormatAll
+// - FormatChanged: dotnet run --project .\Build --no-restore -- -p FormatChanged
+// - Build:         dotnet run --project .\Build --no-restore -- -p Build
+// - PushClient:    dotnet run --project .\Build --no-restore -- -p PushClient
+// - PublishAlpha:  dotnet run --project .\Build --no-restore -- -p PublishAlpha
 
 open System
 open System.IO
@@ -15,6 +16,18 @@ open CliWrap
 open CliWrap.Buffered
 
 let commitjiCli = "Commitji.Cli"
+
+// -- Run ----
+
+pipeline "Run" {
+    workingDir __SOURCE_DIRECTORY__
+    // stage "Debug" { echo $"working dir: %s{__SOURCE_DIRECTORY__}" }
+
+    // 👇 Note the --no-restore → you need to run `dotnet restore` the first time
+    stage "Run" { run "dotnet run --project ..\src\Commitji.Cli\ --no-restore" }
+
+    runIfOnlySpecified false
+}
 
 // -- Build ----
 
@@ -35,7 +48,7 @@ pipeline "Build" {
     stage "Build" { run "dotnet build -c Release --tl" }
     stage "UnitTests" { run "dotnet test -c Release --tl" }
     stage "Pack" { run $"dotnet pack ./src/%s{commitjiCli} --no-restore -c Release --tl" }
-    runIfOnlySpecified false
+    runIfOnlySpecified true
 }
 
 // -- Format ----
