@@ -2,11 +2,137 @@
 
 ![Commitji](https://github.com/rdeneau/commitji/raw/main/Commitji.png)
 
-> Kind of lightweight [Commitizen](https://commitizen.github.io/cz-cli/) combined with [Gitmoji](https://gitmoji.dev/)
-> to facilitate writing conventional commit messages closed to [Angular Commit Message Conventions](https://github.com/angular/angular/blob/main/contributing-docs/commit-message-guidelines.md)
-> supported by [semantic release](https://semantic-release.gitbook.io/semantic-release).
-
 [![NuGet Version](https://img.shields.io/nuget/v/Commitji.Cli)](https://www.nuget.org/packages/Commitji.Cli)
+![Dotnet version](https://img.shields.io/badge/dotnet-8.0-blue)
+
+> Kind of lightweight combination of [Commitizen](https://commitizen.github.io/cz-cli/) with [Gitmoji](https://gitmoji.dev/)
+> to facilitate writing [conventional commit](https://github.com/angular/angular/blob/main/contributing-docs/commit-message-guidelines.md)
+> messages supported by [semantic release](https://semantic-release.gitbook.io/semantic-release) and including an emoji
+> compatible with the commit type.
+
+## Installation
+
+Commitji is available as a .NET global tool. You can install it using the following command:
+
+```powershell
+dotnet tool install --global Commitji.Cli
+```
+
+## Issues at stake
+
+### Tools
+
+You may have a preferred tool to create commits.
+
+For instance, on Windows, I use [GitExtensions](https://gitextensions.github.io) 🤩, practical
+_(as long as you don't mind using the mouse)_ and powerful user-interface for `git`.
+In the commit view, I use on daily basis the following features:
+
+- stage/unstage many/all files at once,
+- stage/unstage only some lines in a file, by selecting the lines and using the keyboard shortcut `[S]` or `[U]`,
+- select a previous commit messages,
+- amend the previous commit,
+- get auto-completion with the name of the changed file while typing the commit message,
+- create a branch before committing,
+- visualize the differences without whitespaces changes,
+- display the differences in WinMerge (`[F3]`).
+
+👉 Commitji is not a replacement for such a tool, it is complementary to it, to help you write commit messages:
+
+1. You start in your usual tool to refine the changes you want to commit,
+2. You run `commitji` in a (separate) terminal to get the commit message template,
+3. You get back to your tool to paste the template, complete it to get a full commit message, and commit the changes.
+
+### Conventions
+
+Following a convention in your commit messages helps to read the commit history. But there are several conventions:
+
+- [Conventional Commits](https://www.conventionalcommits.org) uses prefixes like `feat`, `fix`, etc.
+- [Gitmoji](https://gitmoji.dev/) uses emojis to indicate the type of change.
+
+Both are interesting, but they are not compatible with each other. Moreover, only a subset of the conventional commits
+template is supported by [semantic release](https://semantic-release.gitbook.io/semantic-release).
+
+👉 Commitji allows you to get the best of the three worlds, by following conventional commits compatible with semantic release,
+while using emojis to clarify the type of change, to end up with this template:
+
+```
+<prefix>: <emoji> #description
+<BLANK LINE>
+[BREAKING CHANGE: #explanation]
+```
+
+### Prefix
+
+The `<prefix>`, called `type` in conventional commits, indicates the type of change.
+
+There are 9 prefixes available, almost all directly supported by semantic release:
+
+- The more important: `feat`, `fix`, `refactor`, `test`.
+- The other prefixes: `chore`, `docs`, `perf`, `revert`, `wip`.
+
+Note that there are no `build`, `ci`, `style`.
+
+- `build` and `ci` can be included
+  - in the `<scope>` of the `chore` prefix, e.g. `chore(build): ⬆️ bump dependencies`
+  - in the `#description`, e.g. `chore: 🐛 fix CI build`
+- `style`:
+  - means usually a change in the code style. But it's what `refactor` is for.
+  - sometimes used for a change in the UI style. In this case, it is rather a `feat` or a `fix`, depending on the context.
+
+### Emoji
+
+The `<emoji>` complements the `<prefix>`. It is placed in front of the description to clarify the type of change.
+
+There are 75 emojis available, most of them from Gitmoji. It is quite a lot.
+
+- If you know well some emojis, you may start by selecting the emoji, and then the prefix amongst those compatibles.
+- Otherwise, it is usually more convenient to start with the prefix, and then select the emoji.
+
+👉 Commitji related features:
+
+- _Start step:_
+  - By default, you start by selecting the prefix.
+  - It's possible to switch to start by selecting the emoji.
+- _Quick search:_ the selection is made with the keyboard, by starting to type the emoji/prefix code \
+  e.g. Type `spa` to select `sparkles ✨`.
+
+Gitmoji indicates the emoji codes used on GitHub. But, they may differ on other platforms you are more accustomed to,
+like the OS of your mobile phone or the emoji picker on Windows 11 (`[Windows]+[.]`). For instance, the
+[_Check Mark Button_ ✅](https://emojipedia.org/check-mark-button#technical) has the code `:white_check_mark:` on GitHub,
+but it is `check mark button` on Windows 11, and is also known as _Green Tick_.
+
+👉 Commitji related features:
+
+- The emoji is inserted in the commit message as a Unicode character, not as a code. \
+  ☝️ The emoji code displayed can be shortened for practical reasons, e.g. just `check_mark`.
+- _Full-text search_ : what you type is searched inside the code and the description \
+  e.g. Type `depe` to select a change related to a dependency:
+  - `arrow_down       :` ⬇️ Downgrade dependencies.
+  - `arrow_up         :` ⬆️ Upgrade dependencies.
+  - `heavy_minus_sign :` ➖ Remove a dependency.
+  - `heavy_plus_sign  :` ➕ Add a dependency.
+  - `pushpin          :` 📌 Pin dependencies to specific versions.
+- [v1.2] support of more codes, including aliases specified in [Emojipedia](https://emojipedia.org/) \
+  e.g. Type `tick` to select either `lipstick 💄` or `check_mark ✅`.
+- [v1.3] auto-expanding search: if what you have typed does not match the current search mode or the current start step,
+  before indicating that no match is found, the tool tries to auto-expand the search mode and/or the current start step
+  to match the input.
+
+### Breaking change
+
+The `BREAKING CHANGE` is an optional section to indicate a breaking change.
+
+👉 Commitji ensures the compatibility with semantic release:
+
+- it's placed on a separate line
+- there are no `!` at the end of `type` (e.g. `feat!`)
+  - 💡 the emoji `boom` 💥 is used instead to get the same effect
+
+☝️ Indicate a breaking change wisely: it's not just about a technical change that may break the code; it should be
+related to an improvement in your product that is worth the migration cost for your users.
+
+🔗 [Practical vs. Strict Semantic Versioning](https://aaronstannard.com/oss-semver/)
 
 ## Usage
 
@@ -49,11 +175,3 @@ At any time, you can press:
 - `[Ctrl]+[C]` to close the tool.
 
 💡 These keystrokes are indicated in the hints panel that is updated to match the input and the selection.
-
-## Installation
-
-🚧 TODO
-
-## Additional resources 🔗
-
-- [Emojipedia](https://emojipedia.org/)

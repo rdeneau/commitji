@@ -261,7 +261,7 @@ let private determineCommitMessageTemplate (model: Model) =
         | BreakingChange.Yes -> Environment.NewLine + Environment.NewLine + "BREAKING CHANGE: #explanation"
         | BreakingChange.No -> ""
 
-    $"%s{prefix.Code}: %s{emoji.Char} #message%s{breakingChangeMessage}"
+    $"%s{prefix.Code}: %s{emoji.Char} #description%s{breakingChangeMessage}"
 
 let private performSearch (model: Model) =
     let updateModelStep getStep getSelectableList =

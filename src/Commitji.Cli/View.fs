@@ -13,7 +13,7 @@ open TextCopy
 
 [<RequireQualifiedAccess>]
 module private CommitMessageTemplate =
-    // To colorize #message and #explanation
+    // To colorize #description and #explanation
     let private formatHashtags (text: string) =
         Regex.Replace(text, @"#\w+", (fun x -> Markup.applyMarkup "olive" x.Value))
 
