@@ -10,7 +10,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".", ".", "{21D6D609-A9EF-43
 		.gitattributes = .gitattributes
 		build.fsx = build.fsx
 		.config\dotnet-tools.json = .config\dotnet-tools.json
-		CHANGELOG.md = CHANGELOG.md
 		release.config.mjs = release.config.mjs
 		package.json = package.json
 	EndProjectSection
