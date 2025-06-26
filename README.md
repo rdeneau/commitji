@@ -56,7 +56,7 @@ template is supported by [semantic release](https://semantic-release.gitbook.io/
 👉 Commitji allows you to get the best of the three worlds, by following conventional commits compatible with semantic release,
 while using emojis to clarify the type of change, to end up with this template:
 
-```
+```txt
 <prefix>: <emoji> #description
 <BLANK LINE>
 [BREAKING CHANGE: #explanation]
@@ -76,9 +76,12 @@ Note that there are no `build`, `ci`, `style`.
 - `build` and `ci` can be included
   - in the `<scope>` of the `chore` prefix, e.g. `chore(build): ⬆️ bump dependencies`
   - in the `#description`, e.g. `chore: 🐛 fix CI build`
-- `style`:
-  - means usually a change in the code style. But it's what `refactor` is for.
-  - sometimes used for a change in the UI style. In this case, it is rather a `feat` or a `fix`, depending on the context.
+- `style` is confusing and not needed:
+  - When it means a change in the code style, we can use `refactor` instead.
+  - When it's used for a change in the UI style, it's probably rather a `feat` or a `fix` that you can complement with an UI emoji:
+    - `dizzy    :` 💫 Add or update animations and transitions.
+    - `iphone   :` 📱 Work on responsive design.
+    - `lipstick :` 💄 Change the UI visually but not it's behaviour.
 
 ### Emoji
 
