@@ -98,7 +98,7 @@ module private HintPanel =
                 | Possibility.ConfirmAllSelection, Step.Prefix _
                 | Possibility.ConfirmAllSelection, Step.Emoji _
                 | Possibility.ConfirmAllSelection, Step.BreakingChange _ -> ()
-                | Possibility.ConfirmAllSelection, Step.Confirmation _ -> Hint.key "Enter" "Copy the commit message template to the clipboard ✅" // TODO ❗ copy to clipboard
+                | Possibility.ConfirmAllSelection, Step.Confirmation _ -> Hint.key "Enter" "Copy the commit message template to the clipboard ✅"
 
                 | Possibility.ToggleFirstStepToEmoji, _ -> Hint.key ":" "Start by selecting an emoji"
 
@@ -204,51 +204,31 @@ module Stepper =
         AnsiConsole.WriteLine()
 
 module private Render =
+    let private completedStep instruction segments =
+        instruction ()
+        SelectionPrompt.render (currentChoiceIndex = -1) [ segments |> List.filter (fun x -> x.Id <> SegmentId.Number) ]
+        AnsiConsole.WriteLine()
+
     let completedSteps (model: Model) =
         for step in List.rev model.CompletedSteps do
             match step with
-            | CompletedStep.Prefix prefix ->
-                Instruction.prefix ()
-                SelectionPrompt.render (currentChoiceIndex = 0) [ prefix.Segments ]
-                AnsiConsole.WriteLine()
+            | CompletedStep.Prefix prefix -> completedStep Instruction.prefix prefix.Segments
+            | CompletedStep.Emoji emoji -> completedStep Instruction.emoji emoji.Segments
+            | CompletedStep.BreakingChange breakingChange -> completedStep Instruction.breakingChange breakingChange.Segments
+            | CompletedStep.SemVerChange semVerChange -> completedStep Instruction.semVerChange (SemVerChange.segments semVerChange)
 
-            | CompletedStep.Emoji emoji ->
-                Instruction.emoji ()
-                SelectionPrompt.render (currentChoiceIndex = 0) [ emoji.Segments ]
-                AnsiConsole.WriteLine()
-
-            | CompletedStep.BreakingChange breakingChange ->
-                Instruction.breakingChange ()
-                SelectionPrompt.render (currentChoiceIndex = 0) [ breakingChange.Segments ]
-                AnsiConsole.WriteLine()
-
-            | CompletedStep.SemVerChange semVerChange ->
-                Instruction.semVerChange ()
-                SelectionPrompt.render (currentChoiceIndex = 0) [ SemVerChange.segments semVerChange ]
-                AnsiConsole.WriteLine()
+    let private selectableCurrentStep model instruction (list: SelectableList<'t>) =
+        instruction ()
+        ErrorPanel.render model
+        SelectionPrompt.render (currentChoiceIndex = list.Index) [ for prefix in list.Items -> prefix.Segments ]
+        AnsiConsole.WriteLine()
+        HintPanel.render model
 
     let currentStep (model: Model) =
         match model.CurrentStep.Step with
-        | Step.Prefix prefixes ->
-            Instruction.prefix ()
-            ErrorPanel.render model
-            SelectionPrompt.render (currentChoiceIndex = prefixes.Index) [ for prefix in prefixes.Items -> prefix.Segments ]
-            AnsiConsole.WriteLine()
-            HintPanel.render model
-
-        | Step.Emoji emojis ->
-            Instruction.emoji ()
-            ErrorPanel.render model
-            SelectionPrompt.render (currentChoiceIndex = emojis.Index) [ for emoji in emojis.Items -> emoji.Segments ]
-            AnsiConsole.WriteLine()
-            HintPanel.render model
-
-        | Step.BreakingChange breakingChanges ->
-            Instruction.breakingChange ()
-            ErrorPanel.render model
-            SelectionPrompt.render (currentChoiceIndex = breakingChanges.Index) [ for breakingChanges in breakingChanges.Items -> breakingChanges.Segments ]
-            AnsiConsole.WriteLine()
-            HintPanel.render model
+        | Step.Prefix prefixes -> selectableCurrentStep model Instruction.prefix prefixes
+        | Step.Emoji emojis -> selectableCurrentStep model Instruction.emoji emojis
+        | Step.BreakingChange breakingChanges -> selectableCurrentStep model Instruction.breakingChange breakingChanges
 
         | Step.Confirmation commitMessageTemplate ->
             Instruction.confirmation ()
