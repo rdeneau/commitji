@@ -19,7 +19,7 @@ module Search =
                 label,
                 {
                     SegmentsConfiguration.States = // ↩
-                        Map [ SegmentId.Code, SegmentState.Searchable operation ]
+                        Map [ SegmentId.Code, SegmentConfig.Searchable operation ]
                 }
             )
 
@@ -47,17 +47,20 @@ module Search =
         type CodeHits<'item>(getCode: 'item -> string, input: SearchInput) =
             let length = input.Length
 
-            member _.SearchItem(index, item, hits) = {
-                Item = item
-                Index = index
-                Segments = [
-                    {
-                        Id = SegmentId.Code
-                        Text = SegmentText(getCode item)
-                        State = SegmentState.Searched(hits, length)
-                    }
-                ]
-            }
+            member _.SearchItemMultiCodes(index, item, codesWithHits) =
+                let segments =
+                    match codesWithHits with
+                    | [ code, hits ] -> SearchedSegmentText { Text = code; Hits = hits }
+                    | _ -> SearchedSegmentTexts [ for code, hits in codesWithHits -> { Text = code; Hits = hits } ]
+
+                {
+                    Item = item
+                    Index = index
+                    Segments = [ SearchSegment.Searched(SegmentId.Code, segments, length) ]
+                }
+
+            member this.SearchItem(index, item, hits) =
+                this.SearchItemMultiCodes(index, item, [ getCode item, hits ])
 
         type CodeHitsSource<'item>(getCode: 'item -> string) =
             member _.By(input) =
@@ -118,11 +121,14 @@ module Fixture =
         static member SearchedPrefixesAtStartBy(input, prefixes) =
             Fixture.SearchedPrefixesBy(input, prefixes |> withHitAtStart)
 
-        static member SearchedEmojisBy(input, emojisWithHits) =
-            Fixture.SearchedItem(Searched.emoji.By(input), emojisWithHits)
+        static member private SearchItemMultiCodes(builder: Searched.CodeHits<_>, itemsWithCodesAndHits) =
+            SelectableList.init [
+                for index, (item: 'item, codesWithHits) in List.indexed itemsWithCodesAndHits do
+                    builder.SearchItemMultiCodes(index, item, codesWithHits = codesWithHits)
+            ]
 
-        static member SearchedEmojisAtStartBy(input, emojis) =
-            Fixture.SearchedItem(Searched.emoji.By(input), emojis |> withHitAtStart)
+        static member SearchedEmojisBy(input, emojisWithCodesAndHits) =
+            Fixture.SearchItemMultiCodes(Searched.emoji.By(input), emojisWithCodesAndHits)
 
     [<RequireQualifiedAccess>]
     type CompletedStepItem =
@@ -183,136 +189,247 @@ module Fixture =
         | Z
 
     let (|InputWithManyMatchingEmojis|) input =
-        let result emojisWithHits =
+        let result emojisWithCodeAndHits =
             let inputText = toStringLower input
-            let expectedEmojis = emojisWithHits |> List.map fst
-            let expectedStep = Step.Emoji(Fixture.SearchedEmojisBy(inputText, emojisWithHits))
+            let expectedEmojis = emojisWithCodeAndHits |> List.map fst
+
+            let expectedStep =
+                Step.Emoji(Fixture.SearchedEmojisBy(inputText, emojisWithCodeAndHits))
+
             inputText, expectedEmojis, expectedStep
 
         match input with
         | InputMatchingManyEmojis.Arrow ->
             result [
-                // .. 0         1         2
-                // .. 01234567890123456789012345
+                Emoji.ArrowDown, [ "arrow_down", [ 0 ] ]
+                Emoji.ArrowUp, [ "arrow_up", [ 0 ] ]
 
-                // .. ↓
-                Emoji.ArrowDown, [ 0 ]
-                Emoji.ArrowUp, [ 0 ]
-
-                // ..                    ↓
-                // .. twisted_rightwards_arrows
-                Emoji.TwistedRightwardsArrows, [ 19 ]
+                Emoji.TwistedRightwardsArrows,
+                [
+                    //.........1.........2..........3...
+                    //1234567890123456789012234567890123
+                    //                  arrow
+                    "twisted_rightwards_arrows", [ 19 ]
+                    "shuffle_tracks_button", []
+                ]
             ]
 
         | InputMatchingManyEmojis.Bu ->
             result [
-                // .. 0         1         2
-                // .. 01234567890123456789012345
+                Emoji.Ambulance,
+                [
+                    //.........1.........2..........3...
+                    //1234567890123456789012234567890123
+                    // bu
+                    "ambulance", [ 2 ]
+                ]
 
-                // ..   ↓
-                Emoji.Ambulance, [ 2 ]
+                Emoji.Bug, [ "bug", [ 0 ] ]
+                Emoji.BuildingConstruction, [ "building_construction", [ 0 ] ]
 
-                // .. ↓
-                Emoji.Bug, [ 0 ]
-                Emoji.BuildingConstruction, [ 0 ]
-                Emoji.Bulb, [ 0 ]
-                Emoji.BustsInSilhouette, [ 0 ]
+                Emoji.Bulb,
+                [
+                    "bulb", [ 0 ]
+                    //.........1.........2..........3...
+                    //1234567890123456789012234567890123
+                    //     bu
+                    "light_bulb", [ 6 ]
+                    "idea", []
+                ]
+
+                Emoji.BustsInSilhouette, [ "busts_in_silhouette", [ 0 ]; "silhouette_of_two_people", []; "shadow", []; "users", [] ]
+
+                Emoji.Rewind,
+                [
+                    //.........1.........2..........3...
+                    //1234567890123456789012234567890123
+                    //            bu
+                    "fast_reverse_button", [ 13 ]
+                    "rewind", []
+                    "left_pointing_double_triangle", []
+                ]
+
+                Emoji.SpeechBalloon,
+                [
+                    //.........1.........2..........3...
+                    //1234567890123456789012234567890123
+                    //    bu
+                    "chat_bubble", [ 5 ]
+                    "speech_balloon", []
+                ]
+
+                Emoji.TwistedRightwardsArrows,
+                [
+                    //.........1.........2..........3...
+                    //1234567890123456789012234567890123
+                    //              bu
+                    "shuffle_tracks_button", [ 15 ]
+                    "twisted_rightwards_arrows", []
+                ]
             ]
+
         | InputMatchingManyEmojis.Co ->
             result [
-                // .. 0         1         2
-                // .. 01234567890123456789012345
+                Emoji.Boom, [ "collision", [ 0 ]; "boom", [] ]
 
-                // ..          ↓
-                // .. building_construction
-                Emoji.BuildingConstruction, [ 9 ]
+                Emoji.BuildingConstruction,
+                [
+                    //.........1.........2..........3...
+                    //1234567890123456789012234567890123
+                    //        co
+                    "building_construction", [ 9 ]
+                ]
 
-                // .. ↓
-                Emoji.Coffin, [ 0 ]
-                Emoji.Construction, [ 0 ]
-                Emoji.ConstructionWorker, [ 0 ]
+                Emoji.Coffin, [ "coffin", [ 0 ]; "casket", []; "funeral", [] ]
+                Emoji.Construction, [ "construction", [ 0 ]; "wip", [] ]
+                Emoji.ConstructionWorker, [ "construction_worker", [ 0 ] ]
 
-                // ..          ↓
-                // .. passport_control
-                Emoji.PassportControl, [ 9 ]
+                Emoji.PassportControl,
+                [
+                    //.........1.........2..........3...
+                    //1234567890123456789012234567890123
+                    //        co
+                    "passport_control", [ 9 ]
+                ]
 
-                // ..        ↓
-                Emoji.Stethoscope, [ 7 ]
+                Emoji.SeeNoEvil,
+                [
+                    //.........1.........2..........3...
+                    //1234567890123456789012234567890123
+                    //      co
+                    "monkey_covering_eyes", [ 7 ]
+                    "see_no_evil", []
+                    "mizaru", []
+                ]
+
+                Emoji.Stethoscope,
+                [
+                    //.........1.........2..........3...
+                    //1234567890123456789012234567890123
+                    //      co
+                    "stethoscope", [ 7 ]
+                ]
             ]
 
         | InputMatchingManyEmojis.Cons ->
             result [
-                // .. 0         1         2
-                // .. 01234567890123456789012345
+                Emoji.BuildingConstruction,
+                [
+                    //.........1.........2..........3...
+                    //1234567890123456789012234567890123
+                    //        cons
+                    "building_construction", [ 9 ]
+                ]
 
-                // ..          ↓
-                // .. building_construction
-                Emoji.BuildingConstruction, [ 9 ]
-
-                // .. ↓
-                Emoji.Construction, [ 0 ]
-                Emoji.ConstructionWorker, [ 0 ]
+                Emoji.Construction, [ "construction", [ 0 ]; "wip", [] ]
+                Emoji.ConstructionWorker, [ "construction_worker", [ 0 ] ]
             ]
 
         | InputMatchingManyEmojis.Heavy ->
-            result [
-                // .. 0         1         2
-                // .. 01234567890123456789012345
-                // .. ↓
-                Emoji.HeavyMinusSign, [ 0 ]
-                Emoji.HeavyPlusSign, [ 0 ]
+            result [ // ↩
+                Emoji.HeavyMinusSign, [ "heavy_minus_sign", [ 0 ] ]
+                Emoji.HeavyPlusSign, [ "heavy_plus_sign", [ 0 ] ]
             ]
 
         | InputMatchingManyEmojis.Mon ->
-            result [
-                // .. 0         1         2
-                // .. 01234567890123456789012345
-                // .. ↓
-                Emoji.MoneyWithWings, [ 0 ]
-                Emoji.MonocleFace, [ 0 ]
+            result [ // ↩
+                Emoji.MoneyWithWings, [ "money_with_wings", [ 0 ] ]
+                Emoji.MonocleFace, [ "monocle_face", [ 0 ] ]
+                Emoji.SeeNoEvil, [ "monkey_covering_eyes", [ 0 ]; "see_no_evil", []; "mizaru", [] ]
             ]
 
         | InputMatchingManyEmojis.Te ->
             result [
-                // .. 0         1         2
-                // .. 01234567890123456789012345
+                Emoji.ArtistPalette,
+                [
+                    //.........1.........2..........3...
+                    //1234567890123456789012234567890123
+                    //           te
+                    "artist_palette", [ 12 ]
+                ]
 
-                // ..             ↓
-                // .. artist_palette
-                Emoji.ArtistPalette, [ 12 ]
+                Emoji.BustsInSilhouette,
+                [
+                    //.........1.........2..........3...
+                    //1234567890123456789012234567890123
+                    //                te
+                    "busts_in_silhouette", [ 17 ]
+                    //       te
+                    "silhouette_of_two_people", [ 8 ]
+                    "shadow", []
+                    "users", []
+                ]
 
-                // ..                  ↓
-                // .. busts_in_silhouette
-                Emoji.BustsInSilhouette, [ 17 ]
+                Emoji.CheckMark,
+                [
+                    //123456789
+                    //  te
+                    "white_check_mark", [ 3 ]
+                    "check_mark", []
+                    "green_tick", []
+                ]
 
-                // ..   ↓
-                Emoji.Mute, [ 2 ]
+                Emoji.Mute, [ "mute", [ 2 ] ]
 
-                // ..  ↓
-                Emoji.Stethoscope, [ 1 ]
+                Emoji.Sparkles,
+                [
+                    //123456789
+                    //   te
+                    "glitter", [ 4 ]
+                    "sparkles", []
+                    "shiny", []
+                ]
 
-                // .. ↓
-                Emoji.Technologist, [ 0 ]
-                Emoji.TestTube, [ 0 ]
+                Emoji.Stethoscope,
+                [
+                    //123456789
+                    //te
+                    "stethoscope", [ 1 ]
+                ]
 
-                // ..     ↓
-                Emoji.TwistedRightwardsArrows, [ 4 ]
+                Emoji.Technologist, [ "technologist", [ 0 ] ]
+                Emoji.TestTube, [ "test_tube", [ 0 ] ]
+
+                Emoji.TwistedRightwardsArrows,
+                [
+                    //123456789
+                    //   te
+                    "twisted_rightwards_arrows", [ 4 ]
+                    "shuffle_tracks_button", []
+                ]
 
                 // ..    ↓
-                Emoji.Wastebasket, [ 3 ]
-                Emoji.WhiteCheckMark, [ 3 ]
+                Emoji.Wastebasket,
+                [
+                    //123456789
+                    //  te
+                    "wastebasket", [ 3 ]
+                    "wastepaper_basket", [ 3 ]
+                    "garbage_can", []
+                    "rubbish_bin", []
+                    "trash_can", []
+                ]
             ]
 
         | InputMatchingManyEmojis.Z ->
             result [
-                // .. 0         1         2
-                // .. 01234567890123456789012345
+                Emoji.Dizzy,
+                [
+                    //1234
+                    // zz
+                    "dizzy", [ 2; 3 ]
+                ]
 
-                // ..   ↓↓  👈 double-hit - no-conflation to avoid over-engineering low-impact optimisation
-                Emoji.Dizzy, [ 2; 3 ]
+                Emoji.SeeNoEvil,
+                [
+                    //1234
+                    // z
+                    "mizaru", [ 2 ]
+                    "see_no_evil", []
+                    "monkey_covering_eyes", []
+                ]
 
-                // .. ↓
-                Emoji.Zap, [ 0 ]
+                Emoji.Zap, [ "zap", [ 0 ]; "high_voltage", []; "lightning_bolt", []; "thunderbolt", [] ]
             ]
 
     [<RequireQualifiedAccess>]
@@ -349,7 +466,7 @@ module Fixture =
         | HeavyP
         | Mag
         | Mone
-        | Pac
+        | Pack
         | Pag
         | Pas
         | Pu
@@ -358,12 +475,12 @@ module Fixture =
         | Rot
         | Sa
         | See_
-        | Spa
+        | Spar
         | Tes
-        | Thr
+        | Thre
         | Whe
         | Whi
-        | Za
+        | Zap
 
     let (|MinInputWithMatchingEmojiWithSinglePrefix|) =
         function
@@ -377,7 +494,7 @@ module Fixture =
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.HeavyP -> "heavy_p", Emoji.HeavyPlusSign, Prefix.Chore
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Mag -> "mag", Emoji.Mag, Prefix.Chore
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Mone -> "mone", Emoji.MoneyWithWings, Prefix.Docs
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Pac -> "pac", Emoji.Package, Prefix.Chore
+        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Pack -> "pack", Emoji.Package, Prefix.Chore
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Pag -> "pag", Emoji.PageFacingUp, Prefix.Docs
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Pas -> "pas", Emoji.PassportControl, Prefix.Feat
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Pu -> "pu", Emoji.Pushpin, Prefix.Chore
@@ -386,12 +503,12 @@ module Fixture =
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Rot -> "rot", Emoji.RotatingLight, Prefix.Fix
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Sa -> "sa", Emoji.SafetyVest, Prefix.Feat
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.See_ -> "see_", Emoji.SeeNoEvil, Prefix.Chore
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Spa -> "spa", Emoji.Sparkles, Prefix.Feat
+        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Spar -> "spar", Emoji.Sparkles, Prefix.Feat
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Tes -> "tes", Emoji.TestTube, Prefix.Test
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Thr -> "thr", Emoji.Thread, Prefix.Perf
+        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Thre -> "thre", Emoji.Thread, Prefix.Perf
         | MinInputToMatchExactlyOneEmojiAndOnePrefix.Whe -> "whe", Emoji.Wheelchair, Prefix.Feat
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Whi -> "whi", Emoji.WhiteCheckMark, Prefix.Test
-        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Za -> "za", Emoji.Zap, Prefix.Perf
+        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Whi -> "whi", Emoji.CheckMark, Prefix.Test
+        | MinInputToMatchExactlyOneEmojiAndOnePrefix.Zap -> "zap", Emoji.Zap, Prefix.Perf
 
     [<RequireQualifiedAccess>]
     type MinInputToMatchExactlyOneEmojiAndManyPrefixes =
@@ -401,7 +518,7 @@ module Fixture =
         | Diz
         | Mono
         | Rew
-        | Tri
+        | Triangular
 
     let (|MinInputWithMatchingEmojiWithManyPrefixes|) =
         function
@@ -411,7 +528,7 @@ module Fixture =
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Diz -> "diz", Emoji.Dizzy, [ Prefix.Feat; Prefix.Fix ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Mono -> "mono", Emoji.MonocleFace, [ Prefix.Chore; Prefix.Wip ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Rew -> "rew", Emoji.Rewind, [ Prefix.Chore; Prefix.Revert ]
-        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Tri -> "tri", Emoji.TriangularFlagOnPost, [ Prefix.Feat; Prefix.Chore ]
+        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Triangular -> "triangular", Emoji.TriangularFlagOnPost, [ Prefix.Feat; Prefix.Chore ]
 
     [<RequireQualifiedAccess>]
     type MinInputToMatchExactlyOnePrefixAndManyEmojis =
@@ -535,10 +652,10 @@ module Fixture =
         | MinInputToMatchExactlyOnePrefixAndManyEmojis.T ->
             result Prefix.Test [
                 Emoji.CameraFlash
+                Emoji.CheckMark
                 Emoji.ClownFace
                 Emoji.Seedling
                 Emoji.TestTube
-                Emoji.WhiteCheckMark
             ]
         | MinInputToMatchExactlyOnePrefixAndManyEmojis.W ->
             result Prefix.Wip [

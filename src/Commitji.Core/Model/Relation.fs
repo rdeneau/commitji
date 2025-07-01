@@ -43,7 +43,7 @@ let private All = [
     Emoji.Technologist, Prefix.Refactor
     Emoji.Zap, Prefix.Perf
     Emoji.Thread, Prefix.Perf
-    Emoji.WhiteCheckMark, Prefix.Test
+    Emoji.CheckMark, Prefix.Test
     Emoji.ClownFace, Prefix.Test
     Emoji.TestTube, Prefix.Test
     Emoji.Hammer, Prefix.Chore

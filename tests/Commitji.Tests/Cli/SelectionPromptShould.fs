@@ -11,15 +11,9 @@ module ``handle 8 choices`` =
     module Fixture =
         let sut = SelectionPrompt(halfPageSize = 3)
 
-        let private segment id text = {
-            Id = id
-            Text = text
-            State = SegmentState.NotSearchable
-        }
-
         let private choice num code = [ // ↩
-            segment SegmentId.Number (SegmentText num)
-            segment SegmentId.Code (SegmentText code)
+            SearchSegment.NotSearchable(SegmentId.Number, SegmentText num)
+            SearchSegment.NotSearchable(SegmentId.Code, SegmentText code)
         ]
 
         let choices = [ // ↩

@@ -8,23 +8,65 @@ type SearchOperation =
     | StartsWith
     | Contains
 
+    member this.AllIndexesOf(input: string, text: string, comparison: StringComparison) =
+        match this with
+        | StartsWith when text.StartsWith(input, comparison) -> [ 0 ] // Match at the start
+        | StartsWith -> [] // No match
+        | Contains -> text |> String.allIndexesOf input comparison
+
 type SegmentText =
-    | SegmentText of string
+    | SegmentText of text: string
+    | SegmentTexts of texts: string list
 
     member this.Value =
         match this with
         | SegmentText text -> text
+        | SegmentTexts(text :: _) -> text
+        | SegmentTexts _ -> ""
 
-/// <remarks>
-/// This union could be split into two for a more precise modelling,
-/// to know when the search happened, but it's too much complexity in the end.
-/// </remarks>
+    member this.Values =
+        match this with
+        | SegmentText text -> [ text ]
+        | SegmentTexts texts -> texts
+
+    static member create texts =
+        match texts with
+        | [ text ] -> SegmentText text
+        | texts -> SegmentTexts texts
+
+type SearchedSegmentChunk = {
+    Text: string
+    Hits: int list
+} with
+    member this.HasNoHits = this.Hits.IsEmpty
+
+type SearchedSegmentText =
+    | SearchedSegmentText of SearchedSegmentChunk
+    | SearchedSegmentTexts of SearchedSegmentChunk list
+
+    member private this.Normalize(normalizeChunks) =
+        match this with
+        | SearchedSegmentText chunk
+        | SearchedSegmentTexts [ chunk ] -> SearchedSegmentText chunk
+        | SearchedSegmentTexts chunks -> SearchedSegmentTexts(normalizeChunks chunks)
+
+    member this.Normalize(sortChunks) =
+        this.Normalize(if sortChunks then List.sortByDescending _.Hits.Length else id) // Get chunks with max hits first
+
 [<RequireQualifiedAccess>]
-type SegmentState =
-    | NotSearchable
-    | Searchable of operation: SearchOperation
-    | Searched of hits: int list * length: int
-    | Selected
+module SearchedSegmentText =
+    let (|HasNoHits|_|) (searchedSegmentText: SearchedSegmentText) =
+        match searchedSegmentText with
+        | SearchedSegmentText x -> x.HasNoHits
+        | SearchedSegmentTexts xs -> xs |> List.forall _.HasNoHits
+
+[<AutoOpen>]
+module private SegmentTextExtensions =
+    type SegmentText with
+        member this.Search(operation: SearchOperation, input, comparison) =
+            match this with
+            | SegmentText text -> SearchedSegmentText { Text = text; Hits = operation.AllIndexesOf(input, text, comparison) }
+            | SegmentTexts texts -> (SearchedSegmentTexts [ for text in texts -> { Text = text; Hits = operation.AllIndexesOf(input, text, comparison) } ]).Normalize(sortChunks = true)
 
 [<RequireQualifiedAccess>]
 type SearchInput =
@@ -58,58 +100,52 @@ type SearchInput =
         | Some searchInput -> searchInput
         | None -> invalidArg (nameof notEmptyInput) "Cannot be empty"
 
-type SearchSegment = {
-    Id: SegmentId
-    Text: SegmentText
-    State: SegmentState
-}
+/// <summary>
+/// State-based variations of the combinations of <c>SegmentId</c> and <c>SegmentText</c>, with additional fields according to the state of the segment.
+/// </summary>
+type SearchSegment =
+    | NotSearchable (**) of id: SegmentId * text: SegmentText
+    | Searchable (*****) of id: SegmentId * text: SegmentText * operation: SearchOperation
+    | Searched (*******) of id: SegmentId * text: SearchedSegmentText * length: int // length of the input used for the search
+    | Selected (*******) of id: SegmentId * text: SegmentText
 
-[<RequireQualifiedAccess>]
-module SearchSegment =
-    let create id text state = {
-        Id = id
-        Text = text
-        State = state
-    }
+    member this.Id =
+        match this with
+        | NotSearchable(id, _)
+        | Searchable(id, _, _)
+        | Searched(id, _, _)
+        | Selected(id, _) -> id
 
-type SearchSegment with
-    static member NotSearchable(id, text) =
-        SearchSegment.create id text SegmentState.NotSearchable
+    member this.Text =
+        match this with
+        | NotSearchable(_, text)
+        | Searchable(_, text, _)
+        | Selected(_, text) -> text
+        | Searched(_, SearchedSegmentText x, _)
+        | Searched(_, SearchedSegmentTexts [ x ], _) -> SegmentText x.Text
+        | Searched(_, SearchedSegmentTexts xs, _) -> SegmentTexts([ for x in xs |> List.sortBy _.HasNoHits -> x.Text ]) // 👈 To place the eventual chunk found at the top of the list
+
+    member this.AsSelected =
+        match this with
+        | NotSearchable(id, text) -> Selected(id, text)
+        | Searchable(id, text, _) -> Selected(id, text)
+        | Searched(id, SearchedSegmentText chunk, _)
+        | Searched(id, SearchedSegmentTexts [ chunk ], _) -> Selected(id, SegmentText chunk.Text)
+        | Searched(id, SearchedSegmentTexts chunks, _) -> Selected(id, SegmentTexts([ for chunk in chunks -> chunk.Text ]))
+        | Selected _ -> this // Already selected
 
     static member SearchableByStart(id, text) =
-        SearchSegment.create id text (SegmentState.Searchable SearchOperation.StartsWith)
+        SearchSegment.Searchable(id, text, SearchOperation.StartsWith)
 
     static member SearchableByContent(id, text) =
-        SearchSegment.create id text (SegmentState.Searchable SearchOperation.Contains)
-
-    static member Searched(id, text, searchInput: SearchInput, hits) =
-        SearchSegment.create id text (SegmentState.Searched(hits, searchInput.Length))
-
-    static member NotFound(id, text, searchInput: SearchInput) =
-        SearchSegment.Searched(id, text, searchInput, hits = [])
-
-    static member Found(id, text, searchInput: SearchInput, firstHit, [<ParamArray>] otherHits) =
-        SearchSegment.Searched(id, text, searchInput, hits = firstHit :: List.ofArray otherHits)
+        SearchSegment.Searchable(id, text, SearchOperation.Contains)
 
 type SearchItem<'t> = {
     Item: 't
     Index: int
     Segments: SearchSegment list
 } with
-    member this.AsSelected = {
-        this with
-            Segments = [
-                for segment in this.Segments do
-                    {
-                        segment with
-                            Text =
-                                match segment.Id with
-                                | SegmentId.Number -> SegmentText ""
-                                | _ -> segment.Text
-                            State = SegmentState.Selected
-                    }
-            ]
-    }
+    member this.AsSelected = { this with Segments = [ for segment in this.Segments -> segment.AsSelected ] }
 
 [<RequireQualifiedAccess>]
 module SearchItem =
@@ -147,33 +183,26 @@ type Search<'t>(initSegmentsByIndex: int -> 't -> SearchSegment list) =
 
         let segments = [
             for segment in initSegmentsByIndex index item do
-                match segment.State with
-                | SegmentState.Searchable location ->
-                    let hits =
-                        match location with
-                        | SearchOperation.StartsWith when segment.Text.Value.StartsWith(input, comparison) -> [ 0 ] // Match at the start
-                        | SearchOperation.StartsWith -> [] // No match
-                        | SearchOperation.Contains -> segment.Text.Value |> String.allIndexesOf input comparison
+                match segment with
+                | SearchSegment.Searchable(id, text, operation) -> // ↩
+                    SearchSegment.Searched(id, text.Search(operation, input, comparison), length)
 
-                    { segment with State = SegmentState.Searched(hits, length) }
+                | SearchSegment.NotSearchable _ -> segment
 
-                | SegmentState.NotSearchable -> // ↩
-                    { segment with State = SegmentState.NotSearchable }
-
-                | SegmentState.Searched _ -> raiseInvalidSegmentState (nameof SegmentState.Searched) "before search" segment.Id item
-                | SegmentState.Selected -> raiseInvalidSegmentState (nameof SegmentState.Selected) "before search" segment.Id item
+                | SearchSegment.Searched _ -> raiseInvalidSegmentState (nameof SearchSegment.Searched) "before search" segment.Id item
+                | SearchSegment.Selected _ -> raiseInvalidSegmentState (nameof SearchSegment.Selected) "before search" segment.Id item
         ]
 
         let hasMatchingSegments =
             segments
             |> List.exists (fun segment ->
-                match segment.State with
-                | SegmentState.NotSearchable
-                | SegmentState.Searched(hits = [])
-                | SegmentState.Searched(length = 0) -> false
-                | SegmentState.Searched _ -> true
-                | SegmentState.Searchable _ -> raiseInvalidSegmentState (nameof SegmentState.Searchable) "after search" segment.Id item
-                | SegmentState.Selected -> raiseInvalidSegmentState (nameof SegmentState.Selected) "before selection" segment.Id item
+                match segment with
+                | SearchSegment.NotSearchable _
+                | SearchSegment.Searched(text = SearchedSegmentText.HasNoHits)
+                | SearchSegment.Searched(length = 0) -> false
+                | SearchSegment.Searched _ -> true
+                | SearchSegment.Searchable _ -> raiseInvalidSegmentState (nameof SearchSegment.Searchable) "after search" segment.Id item
+                | SearchSegment.Selected _ -> raiseInvalidSegmentState (nameof SearchSegment.Selected) "before selection" segment.Id item
             )
 
         match hasMatchingSegments with
