@@ -8,7 +8,7 @@ type private MatchingStrategy =
     | FirstMatchAtIndex
     | ExactMatch
 
-let private (|Match|_|) strategy ({ Items = items; Index = index }: SelectableList<'t>) =
+let private (|Match|_|) strategy ({ Items = items; Index = index }: SelectableList<'t>) : SearchItem<'t> option =
     match strategy, items with
     | FirstMatchAtIndex, _ when index >= 0 && index < items.Length -> Some(items[index].AsSelected)
     | ExactMatch, [ item ] -> Some item.AsSelected
@@ -25,16 +25,16 @@ module private SegmentsConfiguration =
 
     let quickSearch =
         segmentsConfiguration [
-            SegmentId.Number, SegmentState.Searchable SearchOperation.StartsWith
-            SegmentId.Code, SegmentState.Searchable SearchOperation.StartsWith
-            SegmentId.Hint, SegmentState.NotSearchable
+            SegmentId.Number, SegmentConfig.Searchable SearchOperation.StartsWith
+            SegmentId.Code, SegmentConfig.Searchable SearchOperation.StartsWith
+            SegmentId.Hint, SegmentConfig.NotSearchable
         ]
 
     let fullTextSearch =
         segmentsConfiguration [
-            SegmentId.Number, SegmentState.Searchable SearchOperation.StartsWith
-            SegmentId.Code, SegmentState.Searchable SearchOperation.Contains
-            SegmentId.Hint, SegmentState.Searchable SearchOperation.Contains
+            SegmentId.Number, SegmentConfig.Searchable SearchOperation.StartsWith
+            SegmentId.Code, SegmentConfig.Searchable SearchOperation.Contains
+            SegmentId.Hint, SegmentConfig.Searchable SearchOperation.Contains
         ]
 
     let ofSearchMode searchMode =
@@ -53,7 +53,8 @@ module Extensions =
         member private this.InitSegments(segmentsProps) = [
             for segmentId, segmentText in segmentsProps do
                 match this.States.TryFind(segmentId) with
-                | Some segmentState -> SearchSegment.create segmentId segmentText segmentState
+                | Some (SegmentConfig.Searchable operation) -> SearchSegment.Searchable(segmentId, segmentText, operation)
+                | Some SegmentConfig.NotSearchable -> SearchSegment.NotSearchable(segmentId, segmentText)
                 | None -> ()
         ]
 
@@ -70,7 +71,7 @@ module Extensions =
         member this.AsEmojisSearch =
             this.ToSearch(fun index (emoji: Emoji) -> [ // ↩
                 SegmentId.Number, SegmentText.number index
-                SegmentId.Code, SegmentText emoji.Code
+                SegmentId.Code, SegmentTexts emoji.Codes
                 SegmentId.Hint, SegmentText $"%s{emoji.Char} %s{emoji.Hint}"
             ])
 

@@ -4,7 +4,12 @@ module Commitji.Core.Types
 open Commitji.Core.Model
 open Commitji.Core.Model.Search
 
-type SegmentsConfiguration = { States: Map<SegmentId, SegmentState> }
+[<RequireQualifiedAccess>]
+type SegmentConfig =
+    | NotSearchable
+    | Searchable of operation: SearchOperation
+
+type SegmentsConfiguration = { States: Map<SegmentId, SegmentConfig> }
 
 [<RequireQualifiedAccess>]
 type SearchMode =

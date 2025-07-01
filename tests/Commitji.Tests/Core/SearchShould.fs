@@ -1,6 +1,7 @@
 ﻿module Commitji.Tests.Core.SearchShould
 
 open System
+open Commitji.Core
 open Commitji.Core.Helpers
 open Commitji.Core.Model
 open Commitji.Core.Model.Search
@@ -19,44 +20,42 @@ module Item =
 
     type Item = {
         Type: ItemType
-        Code: string
+        Codes: string list
         Label: string
         Index: int
     } with
         member item.Num = $"%i{item.Index + 1}"
 
-        member item.ToSegmentText(segmentType) =
-            match segmentType with
-            | SegmentId.Number -> SegmentText item.Num
-            | SegmentId.Code -> SegmentText item.Code
-            | SegmentId.Hint -> SegmentText item.Label
+        member item.ToSearchSegment(segmentId, state) =
+            let segmentText =
+                match segmentId with
+                | SegmentId.Number -> SegmentText item.Num
+                | SegmentId.Code -> SegmentText.create item.Codes
+                | SegmentId.Hint -> SegmentText item.Label
 
-        member item.ToSearchSegment(segmentType, state) = {
-            Id = segmentType
-            Text = item.ToSegmentText(segmentType)
-            State = state
-        }
-
-        member item.ToSegmentHit(segmentType, hits) =
-            item.ToSearchSegment(segmentType, SegmentState.Searched hits)
+            match state with
+            | SegmentConfig.NotSearchable -> SearchSegment.NotSearchable(segmentId, segmentText)
+            | SegmentConfig.Searchable operation -> SearchSegment.Searchable(segmentId, segmentText, operation)
 
     let (|PrefixItem|) (prefix: Prefix) = {
         Type = ItemType.Prefix prefix
-        Code = prefix.Code
+        Codes = [ prefix.Code ]
         Label = prefix.Hint
         Index = 0
     }
 
     let (|EmojiItem|) (emoji: Emoji) = {
         Type = ItemType.Emoji emoji
-        Code = emoji.Code
+        Codes = emoji.Codes
         Label = emoji.Hint
         Index = 0
     }
 
     let (|BreakingChangeItem|) (breakingChange: bool) = {
         Type = ItemType.BreakingChange breakingChange
-        Code = if breakingChange then "Yes" else "No"
+        Codes = [
+            if breakingChange then "Yes" else "No"
+        ]
         Label = ""
         Index = 0
     }
@@ -89,9 +88,9 @@ module ``1_ init - helpers`` =
 
     type SearchSegments = {
         Item: Item
-        NumState: SegmentState option
-        CodeState: SegmentState option
-        LabelState: SegmentState option
+        NumState: SegmentConfig option
+        CodeState: SegmentConfig option
+        LabelState: SegmentConfig option
     } with
         static member Init(item) = {
             Item = item
@@ -111,54 +110,52 @@ module ``1_ init - helpers`` =
             LabelState = Some state
         }
 
-        member this.AllNotSearchable() = this.All(SegmentState.NotSearchable)
+        member this.AllNotSearchable() = this.All(SegmentConfig.NotSearchable)
 
-        member this.ToList() = [
-            match this.NumState with
-            | Some state -> this.Item.ToSearchSegment(SegmentId.Number, state)
-            | None -> ()
+        member this.ToList() =
+            let searchSegments state segmentId =
+                match state with
+                | Some state -> [ this.Item.ToSearchSegment(segmentId, state) ]
+                | None -> []
 
-            match this.CodeState with
-            | Some state -> this.Item.ToSearchSegment(SegmentId.Code, state)
-            | None -> ()
-
-            match this.LabelState with
-            | Some state -> this.Item.ToSearchSegment(SegmentId.Hint, state)
-            | None -> ()
-        ]
+            [
+                yield! searchSegments this.NumState SegmentId.Number // ↩
+                yield! searchSegments this.CodeState SegmentId.Code
+                yield! searchSegments this.LabelState SegmentId.Hint
+            ]
 
     let initSegmentsByIndex segments searchType =
         let finalizeBuild (searchSegments: SearchSegments) =
             match segments, searchType with
             | Segments.CodeOnly, (Search.ByNum | Search.ByLabelContent) -> // ↩
-                searchSegments.WithCodeState(SegmentState.NotSearchable).ToList()
+                searchSegments.WithCodeState(SegmentConfig.NotSearchable).ToList()
 
             | Segments.CodeOnly, Search.ByCodeStart -> // ↩
-                searchSegments.WithCodeState(SegmentState.Searchable SearchOperation.StartsWith).ToList()
+                searchSegments.WithCodeState(SegmentConfig.Searchable SearchOperation.StartsWith).ToList()
 
             | Segments.CodeOnly, Search.ByCodeContent -> // ↩
-                searchSegments.WithCodeState(SegmentState.Searchable SearchOperation.Contains).ToList()
+                searchSegments.WithCodeState(SegmentConfig.Searchable SearchOperation.Contains).ToList()
 
             | Segments.CodeOnly, Search.FullText -> // ↩
-                searchSegments.WithCodeState(SegmentState.Searchable SearchOperation.Contains).ToList()
+                searchSegments.WithCodeState(SegmentConfig.Searchable SearchOperation.Contains).ToList()
 
             | Segments.All, Search.ByNum -> // ↩
-                searchSegments.AllNotSearchable().WithNumState(SegmentState.Searchable SearchOperation.StartsWith).ToList()
+                searchSegments.AllNotSearchable().WithNumState(SegmentConfig.Searchable SearchOperation.StartsWith).ToList()
 
             | Segments.All, Search.ByCodeStart -> // ↩
-                searchSegments.AllNotSearchable().WithCodeState(SegmentState.Searchable SearchOperation.StartsWith).ToList()
+                searchSegments.AllNotSearchable().WithCodeState(SegmentConfig.Searchable SearchOperation.StartsWith).ToList()
 
             | Segments.All, Search.ByCodeContent -> // ↩
-                searchSegments.AllNotSearchable().WithCodeState(SegmentState.Searchable SearchOperation.Contains).ToList()
+                searchSegments.AllNotSearchable().WithCodeState(SegmentConfig.Searchable SearchOperation.Contains).ToList()
 
             | Segments.All, Search.ByLabelContent -> // ↩
-                searchSegments.AllNotSearchable().WithLabelState(SegmentState.Searchable SearchOperation.Contains).ToList()
+                searchSegments.AllNotSearchable().WithLabelState(SegmentConfig.Searchable SearchOperation.Contains).ToList()
 
             | Segments.All, Search.FullText ->
                 searchSegments // ↩
-                    .WithNumState(SegmentState.Searchable SearchOperation.StartsWith)
-                    .WithCodeState(SegmentState.Searchable SearchOperation.Contains)
-                    .WithLabelState(SegmentState.Searchable SearchOperation.Contains)
+                    .WithNumState(SegmentConfig.Searchable SearchOperation.StartsWith)
+                    .WithCodeState(SegmentConfig.Searchable SearchOperation.Contains)
+                    .WithLabelState(SegmentConfig.Searchable SearchOperation.Contains)
                     .ToList()
 
         fun _index (item: Item) ->
@@ -168,24 +165,20 @@ module ``1_ init - helpers`` =
 module ``1_ init`` =
     [<Property>]
     let ``code only segment`` (ManyItems items) searchType = // ↩
+        let createSearchSegment =
+            match searchType with
+            | Search.ByNum
+            | Search.ByLabelContent -> SearchSegment.NotSearchable
+            | Search.ByCodeStart -> fun (id, text) -> SearchSegment.Searchable(id, text, SearchOperation.StartsWith)
+            | Search.ByCodeContent
+            | Search.FullText -> fun (id, text) -> SearchSegment.Searchable(id, text, SearchOperation.Contains)
+
         let expected = [
             for index, item in List.indexed items do
                 {
                     Item = item
                     Index = index
-                    Segments = [
-                        {
-                            Id = SegmentId.Code
-                            Text = SegmentText item.Code
-                            State =
-                                match searchType with
-                                | Search.ByNum
-                                | Search.ByLabelContent -> SegmentState.NotSearchable
-                                | Search.ByCodeStart -> SegmentState.Searchable SearchOperation.StartsWith
-                                | Search.ByCodeContent
-                                | Search.FullText -> SegmentState.Searchable SearchOperation.Contains
-                        }
-                    ]
+                    Segments = [ createSearchSegment (SegmentId.Code, SegmentText.create item.Codes) ]
                 }
         ]
 
@@ -201,39 +194,31 @@ module ``1_ init`` =
                     Item = item
                     Index = index
                     Segments = [
-                        {
-                            Id = SegmentId.Number
-                            Text = SegmentText item.Num
-                            State =
-                                match searchType with
-                                | Search.ByNum
-                                | Search.FullText -> SegmentState.Searchable SearchOperation.StartsWith
-                                | Search.ByLabelContent
-                                | Search.ByCodeStart
-                                | Search.ByCodeContent -> SegmentState.NotSearchable
-                        }
-                        {
-                            Id = SegmentId.Code
-                            Text = SegmentText item.Code
-                            State =
-                                match searchType with
-                                | Search.ByNum
-                                | Search.ByLabelContent -> SegmentState.NotSearchable
-                                | Search.ByCodeStart -> SegmentState.Searchable SearchOperation.StartsWith
-                                | Search.ByCodeContent
-                                | Search.FullText -> SegmentState.Searchable SearchOperation.Contains
-                        }
-                        {
-                            Id = SegmentId.Hint
-                            Text = SegmentText item.Label
-                            State =
-                                match searchType with
-                                | Search.FullText
-                                | Search.ByLabelContent -> SegmentState.Searchable SearchOperation.Contains
-                                | Search.ByCodeStart
-                                | Search.ByCodeContent
-                                | Search.ByNum -> SegmentState.NotSearchable
-                        }
+                        match searchType with
+                        | Search.ByNum ->
+                            SearchSegment.Searchable(SegmentId.Number, SegmentText item.Num, SearchOperation.StartsWith)
+                            SearchSegment.NotSearchable(SegmentId.Code, SegmentText.create item.Codes)
+                            SearchSegment.NotSearchable(SegmentId.Hint, SegmentText item.Label)
+
+                        | Search.ByCodeStart ->
+                            SearchSegment.NotSearchable(SegmentId.Number, SegmentText item.Num)
+                            SearchSegment.Searchable(SegmentId.Code, SegmentText.create item.Codes, SearchOperation.StartsWith)
+                            SearchSegment.NotSearchable(SegmentId.Hint, SegmentText item.Label)
+
+                        | Search.ByCodeContent ->
+                            SearchSegment.NotSearchable(SegmentId.Number, SegmentText item.Num)
+                            SearchSegment.Searchable(SegmentId.Code, SegmentText.create item.Codes, SearchOperation.Contains)
+                            SearchSegment.NotSearchable(SegmentId.Hint, SegmentText item.Label)
+
+                        | Search.ByLabelContent ->
+                            SearchSegment.NotSearchable(SegmentId.Number, SegmentText item.Num)
+                            SearchSegment.NotSearchable(SegmentId.Code, SegmentText.create item.Codes)
+                            SearchSegment.Searchable(SegmentId.Hint, SegmentText item.Label, SearchOperation.Contains)
+
+                        | Search.FullText ->
+                            SearchSegment.Searchable(SegmentId.Number, SegmentText item.Num, SearchOperation.StartsWith)
+                            SearchSegment.Searchable(SegmentId.Code, SegmentText.create item.Codes, SearchOperation.Contains)
+                            SearchSegment.Searchable(SegmentId.Hint, SegmentText item.Label, SearchOperation.Contains)
                     ]
                 }
         ]
@@ -267,59 +252,93 @@ module ``2_ run - common - helpers`` =
 
         $"%A{input}" |> removeLeadingUnderscore |> changeCase
 
-    [<RequireQualifiedAccess>]
-    type Fixture(len) =
-        member _.NotSearchable = SegmentState.NotSearchable
-        member _.NotFound = SegmentState.Searched([], len)
+    type Expectation =
+        | RemainNotSearchable
+        | BeSearched of hits: int list
 
-        member _.FoundAt([<ParamArray>] hits) =
-            SegmentState.Searched(List.ofArray hits, len)
+        static member NotMatch = Expectation.BeSearched(hits = [])
 
-        member x.FoundAtTheStart = x.FoundAt(0)
-        member x.FoundOnceAt(i: int) = x.FoundAt(i)
-        member x.FoundTwiceAt(i, j) = x.FoundAt(i, j)
+    type ExpectedSearchResult = ExpectedSearchResult of text: string * Expectation
+
+    type String with
+        member text.Should expectation = ExpectedSearchResult(text, expectation)
+
+        member text.ShouldMatchAt(firstHit: int, [<ParamArray>] otherHits: int array) =
+            text.Should(BeSearched(hits = [ firstHit; yield! otherHits ]))
+
+        member text.ShouldMatchAtTheStart = text.ShouldMatchAt(0)
+        member text.ShouldNotMatch = text.Should(BeSearched(hits = []))
 
     type Item with
         /// <remarks>
         /// ⚠️ The `Index` is set to -1 → Call `SearchableList.autoIndex` on the list to set the correct index.<br/>
-        /// 💡 For `defaultValue`, use `_.notSearchable` (normal search) or `_.notFound` (full-text search).<br/>
+        /// 💡 For `defaultValue`, use `Expectation.RemainNotSearchable` (normal search) or `Expectation.NotMatch` (full-text search).<br/>
         /// </remarks>
-        member item.ToSearchSegment(fixture: Fixture, num, code, label, defaultValue) = {
-            Item = item
-            Index = -1
-            Segments = [ // ↩
-                item.ToSearchSegment(SegmentId.Number, (defaultArg num defaultValue) fixture)
-                item.ToSearchSegment(SegmentId.Code, (defaultArg code defaultValue) fixture)
-                item.ToSearchSegment(SegmentId.Hint, (defaultArg label defaultValue) fixture)
-            ]
-        }
+        member item.ToSearchItem
+            (
+                len: int, // ↩
+                numResult: ExpectedSearchResult option,
+                codeResult: ExpectedSearchResult option,
+                codesResults: ExpectedSearchResult list option,
+                labelResult: ExpectedSearchResult option,
+                defaultExpectation: Expectation
+            ) =
+            let searchSegment result segmentId text =
+                match defaultArg result (ExpectedSearchResult(text, defaultExpectation)) with
+                | ExpectedSearchResult(text, Expectation.RemainNotSearchable) -> SearchSegment.NotSearchable(segmentId, SegmentText text)
+                | ExpectedSearchResult(text, Expectation.BeSearched hits) -> SearchSegment.Searched(segmentId, SearchedSegmentText { Text = text; Hits = hits }, len)
+
+            let codesResults =
+                match codesResults, codeResult, defaultExpectation with
+                | Some [], _, _ -> invalidArg (nameof codesResults) $"should not be empty, given item %A{item}"
+                | Some codesResults, _, _ -> codesResults
+                | None, Some codeResult, _ ->
+                    match item.Codes with
+                    | [] -> invalidArg (nameof item) $"should have codes: %A{item}"
+                    | _ :: otherCodes -> [
+                        codeResult
+                        for code in otherCodes do
+                            code.ShouldNotMatch
+                      ]
+                | None, None, Expectation.RemainNotSearchable
+                | None, None, Expectation.BeSearched [] -> [ for code in item.Codes -> ExpectedSearchResult(code, defaultExpectation) ]
+                | None, None, Expectation.BeSearched _ -> failwith $"defaultExpectation %A{defaultExpectation} argument can be only `Expectation.RemainNotSearchable` or `Expectation.NotMatch`"
+
+            let codeSearchSegment =
+                match codesResults.Head with
+                | ExpectedSearchResult(_, Expectation.RemainNotSearchable) -> SearchSegment.NotSearchable(SegmentId.Code, SegmentText.create [ for ExpectedSearchResult(code, _) in codesResults -> code ])
+                | _ ->
+                    let segmentChunks = [
+                        for ExpectedSearchResult(code, result) in codesResults do
+                            match result with
+                            | Expectation.RemainNotSearchable ->
+                                invalidArg (nameof codesResults) $"%s{nameof Expectation}.%s{nameof RemainNotSearchable} should be set for all codes of the item , given item %A{item}"
+                            | Expectation.BeSearched hits -> { Text = code; Hits = hits }
+                    ]
+
+                    SearchSegment.Searched(SegmentId.Code, (SearchedSegmentTexts segmentChunks).Normalize(sortChunks = false), len)
+
+            {
+                Item = item
+                Index = -1
+                Segments = [ // ↩
+                    searchSegment numResult SegmentId.Number item.Num
+                    codeSearchSegment
+                    searchSegment labelResult SegmentId.Hint item.Label
+                ]
+            }
 
 [<AutoOpen>]
 module ``2a_ run - normal search on prefixes - helpers`` =
-    // | Num | Code     | Label                                                           |
-    // |-----|----------|-----------------------------------------------------------------|
-    // | -   | 01234567 | 012345678901234567890123456789012345678901234567890123456789012 |
-    // | --  | 0....... | 0.........1.........2.........3.........4.........5.........6.. |
-    // |-----|----------|-----------------------------------------------------------------|
-    // |  1  | feat     | A new feature                                                   |
-    // |  2  | fix      | A bug fix                                                       |
-    // |  3  | refactor | A code change that does not alter the functionality             |
-    // |  4  | test     | Adding missing tests                                            |
-    // |  5  | chore    | Any other changes finalized: config, build, ci, dependencies... |
-    // |  6  | docs     | Documentation only changes                                      |
-    // |  7  | perf     | A code change that improves performance                         |
-    // |  8  | revert   | Reverts a previous commit                                       |
-    // |  9  | wip      | Work in progress, not yet finalized                             |
-
     let AllPrefixItems =
         Map [
             for index, (PrefixItem item as prefix) in Seq.indexed Prefix.All do
                 prefix, { item with Index = index }
         ]
 
-    type Fixture with
-        member this.SearchSegment(prefix: Prefix, ?num, ?code, ?label) =
-            AllPrefixItems[prefix].ToSearchSegment(this, num, code, label, defaultValue = _.NotSearchable)
+    type Fixture(len) =
+        member fixture.SearchSegment(prefix, ?num, ?code, ?label) =
+            AllPrefixItems[prefix].ToSearchItem(len, numResult = num, codeResult = code, codesResults = None, labelResult = label, defaultExpectation = Expectation.RemainNotSearchable)
 
     [<RequireQualifiedAccess>]
     type InputForPrefixSearch =
@@ -343,84 +362,102 @@ module ``2a_ run - normal search on prefixes - helpers`` =
         let result =
             match input, searchOperation with
             // D: single-hit
-            | InputForPrefixSearch.D, SearchOperation.StartsWith -> SearchableList.autoIndex [ fixture.SearchSegment(Prefix.Docs, code = _.FoundAtTheStart) ]
-            | InputForPrefixSearch.D, SearchOperation.Contains -> SearchableList.autoIndex [ fixture.SearchSegment(Prefix.Docs, code = _.FoundAtTheStart) ]
+            | InputForPrefixSearch.D, _ -> SearchableList.autoIndex [ fixture.SearchSegment(Prefix.Docs, code = "docs".ShouldMatchAtTheStart) ]
 
             // F: several single-hits
             | InputForPrefixSearch.F, SearchOperation.StartsWith ->
                 SearchableList.autoIndex [ // ↩
-                    fixture.SearchSegment(Prefix.Feat, code = _.FoundAtTheStart)
-                    fixture.SearchSegment(Prefix.Fix, code = _.FoundAtTheStart)
+                    fixture.SearchSegment(Prefix.Feat, code = "feat".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Prefix.Fix, code = "fix".ShouldMatchAtTheStart)
                 ]
 
             | InputForPrefixSearch.F, SearchOperation.Contains ->
                 SearchableList.autoIndex [
-                    fixture.SearchSegment(Prefix.Feat, code = _.FoundAtTheStart)
-                    fixture.SearchSegment(Prefix.Fix, code = _.FoundAtTheStart)
-
-                    // ... 012345678
-                    // ...   ↓
-                    fixture.SearchSegment(Prefix.Refactor, code = _.FoundOnceAt(2))
-
-                    // ... 012345678
-                    // ...    ↓
-                    fixture.SearchSegment(Prefix.Perf, code = _.FoundOnceAt(3))
+                    fixture.SearchSegment(Prefix.Feat, code = "feat".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Prefix.Fix, code = "fix".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(
+                        Prefix.Refactor,
+                        // . = "0123456789"
+                        // . = "  f       "
+                        code = "refactor".ShouldMatchAt(2)
+                    )
+                    fixture.SearchSegment(
+                        Prefix.Perf,
+                        // . = "0123456789"
+                        // . = "   f      "
+                        code = "perf".ShouldMatchAt(3)
+                    )
                 ]
 
             // T: double-hit (for `Test` + `Contains`)
             | InputForPrefixSearch.T, SearchOperation.StartsWith ->
                 SearchableList.autoIndex [ // ↩
-                    fixture.SearchSegment(Prefix.Test, code = _.FoundAtTheStart)
+                    fixture.SearchSegment(Prefix.Test, code = "test".ShouldMatchAtTheStart)
                 ]
 
             | InputForPrefixSearch.T, SearchOperation.Contains ->
                 SearchableList.autoIndex [
-                    // ... 012345678
-                    // ...    ↓
-                    fixture.SearchSegment(Prefix.Feat, code = _.FoundOnceAt(3))
-
-                    // ... 012345678
-                    // ...      ↓
-                    fixture.SearchSegment(Prefix.Refactor, code = _.FoundOnceAt(5))
-
-                    // ... 012345678
-                    // ... ↓  ↓
-                    fixture.SearchSegment(Prefix.Test, code = _.FoundTwiceAt(0, 3))
-
-                    // ... 012345678
-                    // ...      ↓
-                    fixture.SearchSegment(Prefix.Revert, code = _.FoundOnceAt(5))
+                    fixture.SearchSegment(
+                        Prefix.Feat,
+                        // . = "0123456789"
+                        // . = "   t      "
+                        code = "feat".ShouldMatchAt(3)
+                    )
+                    fixture.SearchSegment(
+                        Prefix.Refactor,
+                        // . = "0123456789"
+                        // . = "     t    "
+                        code = "refactor".ShouldMatchAt(5)
+                    )
+                    fixture.SearchSegment(
+                        Prefix.Test,
+                        // . = "0123456789"
+                        // . = "t  t      "
+                        code = "test".ShouldMatchAt(0, 3)
+                    )
+                    fixture.SearchSegment(
+                        Prefix.Revert,
+                        // . = "0123456789"
+                        // . = "     t    "
+                        code = "revert".ShouldMatchAt(5)
+                    )
                 ]
 
             // Re: 2-char search, several single-hits
             | InputForPrefixSearch.Re, SearchOperation.StartsWith ->
                 SearchableList.autoIndex [ // ↩
-                    fixture.SearchSegment(Prefix.Refactor, code = _.FoundAtTheStart)
-                    fixture.SearchSegment(Prefix.Revert, code = _.FoundAtTheStart)
+                    fixture.SearchSegment(Prefix.Refactor, code = "refactor".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Prefix.Revert, code = "revert".ShouldMatchAtTheStart)
                 ]
 
             | InputForPrefixSearch.Re, SearchOperation.Contains ->
                 SearchableList.autoIndex [
-                    fixture.SearchSegment(Prefix.Refactor, code = _.FoundAtTheStart)
-
-                    // ... 012345678
-                    // ...    ↓
-                    fixture.SearchSegment(Prefix.Chore, code = _.FoundOnceAt(3))
-
-                    fixture.SearchSegment(Prefix.Revert, code = _.FoundAtTheStart)
+                    fixture.SearchSegment(Prefix.Refactor, code = "refactor".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(
+                        Prefix.Chore,
+                        // . = "0123456789"
+                        // . = "   re     "
+                        code = "chore".ShouldMatchAt(3)
+                    )
+                    fixture.SearchSegment(Prefix.Revert, code = "revert".ShouldMatchAtTheStart)
                 ]
 
             // Or: no hit (for `StartsWith`)
             | InputForPrefixSearch.Or, SearchOperation.StartsWith -> []
             | InputForPrefixSearch.Or, SearchOperation.Contains ->
                 SearchableList.autoIndex [
-                    // ... 012345678
-                    // ...       ↓
-                    fixture.SearchSegment(Prefix.Refactor, code = _.FoundOnceAt(6))
-
-                    // ... 012345678
-                    // ...   ↓
-                    fixture.SearchSegment(Prefix.Chore, code = _.FoundOnceAt(2))
+                    fixture.SearchSegment(
+                        Prefix.Refactor,
+                        // . = "0123456789"
+                        // . = "      or  "
+                        code = "refactor".ShouldMatchAt(6)
+                    )
+                    fixture.SearchSegment(
+                        Prefix.Chore,
+                        // . = "0123456789"
+                        // . = "  or      "
+                        code = "chore".ShouldMatchAt(2)
+                    )
                 ]
 
         let items = AllPrefixItems |> Map.valuesAsList
@@ -444,100 +481,19 @@ module ``2a_ run - normal search on prefixes`` =
         let actual =
             Search(initSegmentsByIndex Segments.All Search.ByNum).Run(SearchInput.create item.Num, items, StringComparison.OrdinalIgnoreCase)
 
-        actual =! SearchableList.autoIndex [ fixture.SearchSegment(prefix, num = _.FoundAtTheStart) ]
+        actual =! SearchableList.autoIndex [ fixture.SearchSegment(prefix, num = item.Num.ShouldMatchAtTheStart) ]
 
 [<AutoOpen>]
 module ``2b_ run - full-text search on emojis - helpers`` =
-    // | Num | Code                      | Label                                                           |
-    // |-----|---------------------------|-----------------------------------------------------------------|
-    // | -   | 0123456789012345678901234 | 0123456789012345678901234567890123456789012345678901234567890123|
-    // | --  | 0.........1.........2.... | 0.........1.........2.........3.........4.........5.........6...|
-    // |-----|---------------------------|-----------------------------------------------------------------|
-    // | 1   | adhesive_bandage          | Simple fix for a non-critical issue.                            |
-    // | 2   | airplane                  | Improve offline support.                                        |
-    // | 3   | alembic                   | Perform experiments.                                            |
-    // | 4   | alien                     | Update code due to external API changes.                        |
-    // | 5   | ambulance                 | Critical hotfix.                                                |
-    // | 6   | arrow_down                | Downgrade dependencies.                                         |
-    // | 7   | arrow_up                  | Upgrade dependencies.                                           |
-    // | 8   | artist_palette            | Improve structure / format of the code.                         |
-    // | 9   | beers                     | Write code drunkenly.                                           |
-    // | 10  | bento                     | Add or update assets.                                           |
-    // | 11  | bookmark                  | Release / Version tags.                                         |
-    // | 12  | boom                      | (a.k.a collision)  Introduce breaking changes.                  |
-    // | 13  | broom                     | (a.k.a sweep) Clean up code (remove dead code, auto-format).    |
-    // | 14  | bricks                    | Infrastructure related changes.                                 |
-    // | 15  | bug                       | Fix a bug.                                                      |
-    // | 16  | building_construction     | Make architectural changes.                                     |
-    // | 17  | bulb                      | (a.k.a idea, light_bulb) Add or update comments in source code. |
-    // | 18  | busts_in_silhouette       | Add or update contributor(s).                                   |
-    // | 19  | camera_flash              | Add or update snapshots.                                        |
-    // | 20  | card_file_box             | Perform database related changes.                               |
-    // | 21  | chart_with_upwards_trend  | Add or update analytics or track code.                          |
-    // | 22  | children_crossing         | Improve user experience / usability.                            |
-    // | 23  | closed_lock_with_key      | Add or update secrets.                                          |
-    // | 24  | clown_face                | Mock things.                                                    |
-    // | 25  | coffin                    | Remove dead code.                                               |
-    // | 26  | construction              | Work in progress (wip), not yet finalized.                      |
-    // | 27  | construction_worker       | Add or update CI build system.                                  |
-    // | 28  | dizzy                     | Add or update animations and transitions. #UI                   |
-    // | 29  | egg                       | Add or update an easter egg.                                    |
-    // | 30  | fire                      | (a.k.a flame) Remove code or files.                             |
-    // | 31  | globe_with_meridians      | Internationalization and localization.                          |
-    // | 32  | goal_net                  | Catch errors.                                                   |
-    // | 33  | green_heart               | Fix CI Build.                                                   |
-    // | 34  | hammer                    | Add or update development scripts.                              |
-    // | 35  | heavy_minus_sign          | Remove a dependency.                                            |
-    // | 36  | heavy_plus_sign           | Add a dependency.                                               |
-    // | 37  | iphone                    | (a.k.a mobile_phone) Work on responsive design. #UI             |
-    // | 38  | label                     | Add or update types.                                            |
-    // | 39  | lipstick                  | Change the UI visually but not it's behaviour. #style           |
-    // | 40  | lock                      | Fix security or privacy issues.                                 |
-    // | 41  | loud_sound                | Add or update logs.                                             |
-    // | 42  | mag                       | Improve SEO.                                                    |
-    // | 43  | memo                      | Add or update documentation.                                    |
-    // | 44  | money_with_wings          | Add sponsorships or money related infrastructure.               |
-    // | 45  | monocle_face              | Data exploration/inspection.                                    |
-    // | 46  | mute                      | Remove logs.                                                    |
-    // | 47  | necktie                   | Add or update business logic.                                   |
-    // | 48  | package                   | Add or update compiled files or packages.                       |
-    // | 49  | page_facing_up            | Add or update license.                                          |
-    // | 50  | passport_control          | Work on code related to authorization, roles and permissions.   |
-    // | 51  | pencil                    | Fix typos.                                                      |
-    // | 52  | poop                      | Write bad code that needs to be improved.                       |
-    // | 53  | pushpin                   | Pin dependencies to specific versions.                          |
-    // | 54  | recycle                   | Refactor code: without changing its behavior.                   |
-    // | 55  | rewind                    | Revert changes.                                                 |
-    // | 56  | rocket                    | Deploy stuff.                                                   |
-    // | 57  | rotating_light            | (a.k.a police_car_light) Fix compiler / linter warnings.        |
-    // | 58  | safety_vest               | Add or update code related to validation.                       |
-    // | 59  | seedling                  | Add or update seed files.                                       |
-    // | 60  | see_no_evil               | (a.k.a see_no_evil_monkey) Add or update a .gitignore file.     |
-    // | 61  | sparkles                  | Introduces a new feature.                                       |
-    // | 62  | speech_balloon            | Add or update text and literals.                                |
-    // | 63  | stethoscope               | Add or update healthcheck.                                      |
-    // | 64  | tada                      | (a.k.a party_popper) Begin a project.                           |
-    // | 65  | technologist              | Improve developer experience.                                   |
-    // | 66  | test_tube                 | Add a (failing) test.                                           |
-    // | 67  | thread                    | Add or update code related to multithreading or concurrency.    |
-    // | 68  | triangular_flag_on_post   | Add, update, or remove feature flags.                           |
-    // | 69  | truck                     | Move or rename resources (e.g.: files, paths, routes).          |
-    // | 70  | twisted_rightwards_arrows | Merge branches.                                                 |
-    // | 71  | wastebasket               | Deprecate code that needs to be cleaned up.                     |
-    // | 72  | wheelchair                | Improve accessibility.                                          |
-    // | 73  | white_check_mark          | Add, update, or pass tests.                                     |
-    // | 74  | wrench                    | Add or update configuration files.                              |
-    // | 75  | zap                       | Improve performance.                                            |
-
     let AllEmojiItems =
         Map [
             for index, (EmojiItem item as emoji) in Seq.indexed Emoji.All do
                 emoji, { item with Index = index }
         ]
 
-    type Fixture with
-        member this.SearchSegment(emoji: Emoji, ?num, ?code, ?label) =
-            AllEmojiItems[emoji].ToSearchSegment(this, num, code, label, defaultValue = _.NotFound)
+    type Fixture(len) =
+        member fixture.SearchSegment(emoji, ?num, ?code, ?codes, ?label) =
+            AllEmojiItems[emoji].ToSearchItem(len, numResult = num, codeResult = code, codesResults = codes, labelResult = label, defaultExpectation = Expectation.NotMatch)
 
     [<RequireQualifiedAccess>]
     type InputForEmojiSearch =
@@ -547,7 +503,9 @@ module ``2b_ run - full-text search on emojis - helpers`` =
         | Build
         | Down
         | Fix
+        | Light
         | Test
+        | Tick
 
     let (|EmojiFullTextSearch|) (input, inputCase) =
         let searchInput = // ↩
@@ -557,145 +515,152 @@ module ``2b_ run - full-text search on emojis - helpers`` =
 
         let result =
             match input with
-
-            // | Num | Code                      | Label                                                         |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | -   | 0123456789012345678901234 | 0123456789012345678901234567890123456789012345678901234567890 |
-            // | --  | 0.........1.........2.... | 0.........1.........2.........3.........4.........5.........6 |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | 2   | airplane                  | Improve offline support.                                      |
-            // | 20  | card_file_box             | Perform database related changes.                             |
-            // | 21  | chart_with_upwards_trend  | Add or update analytics or track code.                        |
-            // | 22  | children_crossing         | Improve user experience / usability.                          |
-            // | 23  | closed_lock_with_key      | Add or update secrets.                                        |
-            // | 24  | clown_face                | Mock things.                                                  |
-            // | 25  | coffin                    | Remove dead code.                                             |
-            // | 26  | construction              | Work in progress (wip), not yet finalized.                    |
-            // | 27  | construction_worker       | Add or update CI build system.                                |
-            // | 28  | dizzy                     | Add or update animations and transitions. #UI                 |
-            // | 29  | egg                       | Add or update an easter egg.                                  |
-            // | ↑   |                           |                                                               |
-            // |-----|---------------------------|---------------------------------------------------------------|
             | InputForEmojiSearch._2 ->
+                // 💡 Match the emoji's number starting by 2
                 SearchableList.autoIndex [
-                    fixture.SearchSegment(Emoji.Airplane, num = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.CardFileBox, num = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.ChartWithUpwardsTrend, num = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.ChildrenCrossing, num = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.ClosedLockWithKey, num = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.ClownFace, num = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.Coffin, num = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.Construction, num = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.ConstructionWorker, num = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.Dizzy, num = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.Egg, num = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.Airplane, num = "2".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Emoji.CardFileBox, num = "20".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Emoji.ChartWithUpwardsTrend, num = "21".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Emoji.CheckMark, num = "22".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Emoji.ChildrenCrossing, num = "23".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Emoji.ClosedLockWithKey, num = "24".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Emoji.ClownFace, num = "25".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Emoji.Coffin, num = "26".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Emoji.Construction, num = "27".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Emoji.ConstructionWorker, num = "28".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Emoji.Dizzy, num = "29".ShouldMatchAtTheStart)
                 ]
 
-            // | Num | Code                      | Label                                                         |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | -   | 0123456789012345678901234 | 0123456789012345678901234567890123456789012345678901234567890 |
-            // | --  | 0.........1.........2.... | 0.........1.........2.........3.........4.........5.........6 |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | 9   | beers                     | Write code drunkenly.                                         |
-            // | ↑   |                           |                                                               |
-            // |-----|---------------------------|---------------------------------------------------------------|
             | InputForEmojiSearch._9 ->
                 SearchableList.autoIndex [ // ↩
-                    fixture.SearchSegment(Emoji.Beers, num = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.Beers, num = "9".ShouldMatchAtTheStart)
                 ]
 
-            // | Num | Code                      | Label                                                         |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | -   | 0123456789012345678901234 | 0123456789012345678901234567890123456789012345678901234567890 |
-            // | --  | 0.........1.........2.... | 0.........1.........2.........3.........4.........5.........6 |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | 10  | bento                     | Add or update assets.                                         |
-            // | ↑   |                           |                                                               |
-            // |-----|---------------------------|---------------------------------------------------------------|
             | InputForEmojiSearch._10 ->
                 SearchableList.autoIndex [ // ↩
-                    fixture.SearchSegment(Emoji.Bento, num = _.FoundAtTheStart)
+                    fixture.SearchSegment(Emoji.Bento, num = "10".ShouldMatchAtTheStart)
                 ]
 
-            // | Num | Code                      | Label                                                         |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | -   | 0123456789012345678901234 | 0123456789012345678901234567890123456789012345678901234567890 |
-            // | --  | 0.........1.........2.... | 0.........1.........2.........3.........4.........5.........6 |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | 16  | building_construction     | Make architectural changes.                                   |
-            // |     | ↑                         |                                                               |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | 27  | construction_worker       | Add or update CI build system.                                |
-            // |     |                           |                  ↑                                            |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | 33  | green_heart               | Fix CI Build.                                                 |
-            // |     |                           |        ↑                                                      |
-            // |-----|---------------------------|---------------------------------------------------------------|
             | InputForEmojiSearch.Build ->
-                SearchableList.autoIndex [ // ↩
-                    fixture.SearchSegment(Emoji.BuildingConstruction, code = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.ConstructionWorker, label = _.FoundOnceAt(17))
-                    fixture.SearchSegment(Emoji.GreenHeart, label = _.FoundOnceAt(7))
+                SearchableList.autoIndex [
+                    fixture.SearchSegment(Emoji.BuildingConstruction, code = "building_construction".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(
+                        Emoji.ConstructionWorker,
+                        // .. = "0.........1.........2.........3.........4.........5........"
+                        // .. = "01234567890123456789012345678901234567890123456789012345678"
+                        // .. = "                 build                                     "
+                        label = "Add or update CI build system.".ShouldMatchAt(17)
+                    )
+                    fixture.SearchSegment(
+                        Emoji.GreenHeart,
+                        // .. = "0.........1.........2.........3.........4.........5........"
+                        // .. = "01234567890123456789012345678901234567890123456789012345678"
+                        // .. = "       build                                               "
+                        label = "Fix CI Build.".ShouldMatchAt(7)
+                    )
                 ]
 
-            // | Num | Code                      | Label                                                         |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | -   | 0123456789012345678901234 | 0123456789012345678901234567890123456789012345678901234567890 |
-            // | --  | 0.........1.........2.... | 0.........1.........2.........3.........4.........5.........6 |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | 6   | arrow_down                | Downgrade dependencies.                                       |
-            // |     |       ↑                   | ↑                                                             |
-            // |-----|---------------------------|---------------------------------------------------------------|
             | InputForEmojiSearch.Down ->
-                SearchableList.autoIndex [ // ↩
-                    fixture.SearchSegment(Emoji.ArrowDown, code = _.FoundOnceAt(6), label = _.FoundAtTheStart)
+                SearchableList.autoIndex [
+                    fixture.SearchSegment(
+                        Emoji.ArrowDown, // ↩
+                        code = "arrow_down".ShouldMatchAt(6),
+                        label = "Downgrade dependencies.".ShouldMatchAtTheStart
+                    )
                 ]
 
-            // | Num | Code                      | Label                                                         |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | -   | 0123456789012345678901234 | 0123456789012345678901234567890123456789012345678901234567890 |
-            // | --  | 0.........1.........2.... | 0.........1.........2.........3.........4.........5.........6 |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | 1   | adhesive_bandage          | Simple fix for a non-critical issue.                          |
-            // |     |                           |        ↑                                                      |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | 5   | ambulance                 | Critical hotfix.                                              |
-            // |     |                           |             ↑                                                 |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | 15  | bug                       | Fix a bug.                                                    |
-            // | 33  | green_heart               | Fix CI Build.                                                 |
-            // | 40  | lock                      | Fix security or privacy issues.                               |
-            // | 51  | pencil                    | Fix typos.                                                    |
-            // |     |                           | ↑                                                             |
-            // | 57  | rotating_light            | (a.k.a police_car_light) Fix compiler / linter warnings.      |
-            // |     |                           |                          ↑                                    |
-            // |-----|---------------------------|---------------------------------------------------------------|
             | InputForEmojiSearch.Fix ->
                 SearchableList.autoIndex [
-                    fixture.SearchSegment(Emoji.AdhesiveBandage, label = _.FoundOnceAt(7))
-                    fixture.SearchSegment(Emoji.Ambulance, label = _.FoundOnceAt(12))
-                    fixture.SearchSegment(Emoji.Bug, label = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.GreenHeart, label = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.Lock, label = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.Pencil, label = _.FoundAtTheStart)
-                    fixture.SearchSegment(Emoji.RotatingLight, label = _.FoundAt(25))
+                    fixture.SearchSegment(
+                        Emoji.AdhesiveBandage,
+                        // .. = "0.........1.........2.........3.........4.........5........"
+                        // .. = "01234567890123456789012345678901234567890123456789012345678"
+                        // .. = "       fix                                                 "
+                        label = "Simple fix for a non-critical issue.".ShouldMatchAt(7)
+                    )
+                    fixture.SearchSegment(
+                        Emoji.Ambulance,
+                        // .. = "0.........1.........2.........3.........4.........5........"
+                        // .. = "01234567890123456789012345678901234567890123456789012345678"
+                        // .. = "            fix                                            "
+                        label = "Critical hotfix.".ShouldMatchAt(12)
+                    )
+                    fixture.SearchSegment(Emoji.Bug, label = "Fix a bug.".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Emoji.GreenHeart, label = "Fix CI Build.".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Emoji.Lock, label = "Fix security or privacy issues.".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Emoji.Pencil, label = "Fix typos.".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Emoji.RotatingLight, label = "Fix compiler / linter warnings.".ShouldMatchAtTheStart)
                 ]
 
-            // | Num | Code                      | Label                                                         |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | -   | 0123456789012345678901234 | 0123456789012345678901234567890123456789012345678901234567890 |
-            // | --  | 0.........1.........2.... | 0.........1.........2.........3.........4.........5.........6 |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | 66  | test_tube                 | Add a (failing) test.                                         |
-            // |     | ↑                         |                 ↑                                             |
-            // |-----|---------------------------|---------------------------------------------------------------|
-            // | 73  | white_check_mark          | Add, update, or pass tests.                                   |
-            // |     |                           |                      ↑                                        |
-            // |-----|---------------------------|---------------------------------------------------------------|
+            | InputForEmojiSearch.Light ->
+                SearchableList.autoIndex [
+                    fixture.SearchSegment(
+                        Emoji.Bulb,
+                        codes = [ // ↩
+                            "light_bulb".ShouldMatchAtTheStart
+                            "bulb".ShouldNotMatch
+                            "idea".ShouldNotMatch
+                        ]
+                    )
+                    fixture.SearchSegment(
+                        Emoji.RotatingLight,
+                        codes = [ // ↩
+                            //.........1.........2.........3..
+                            //12345678901234567890123456789012
+                            "rotating_light".ShouldMatchAt(9)
+                            "emergency_light".ShouldMatchAt(10)
+                            "flashing_light".ShouldMatchAt(9)
+                            "police_car_light".ShouldMatchAt(11)
+                            "siren".ShouldNotMatch
+                        ]
+                    )
+                    fixture.SearchSegment(
+                        Emoji.Zap,
+                        codes = [ // ↩
+                            "lightning_bolt".ShouldMatchAtTheStart
+                            "zap".ShouldNotMatch
+                            "high_voltage".ShouldNotMatch
+                            "thunderbolt".ShouldNotMatch
+                        ]
+                    )
+                ]
+
             | InputForEmojiSearch.Test ->
                 SearchableList.autoIndex [ // ↩
-                    fixture.SearchSegment(Emoji.TestTube, code = _.FoundAtTheStart, label = _.FoundOnceAt(16))
-                    fixture.SearchSegment(Emoji.WhiteCheckMark, label = _.FoundOnceAt(21))
+                    fixture.SearchSegment(
+                        Emoji.CheckMark,
+                        // .. = "0.........1.........2.........3.........4.........5........"
+                        // .. = "01234567890123456789012345678901234567890123456789012345678"
+                        // .. = "                     test                                  "
+                        label = "Add, update, or pass tests.".ShouldMatchAt(21))
+                    fixture.SearchSegment(
+                        Emoji.TestTube,
+                        code = "test_tube".ShouldMatchAtTheStart,
+                        // .. = "0.........1.........2.........3.........4.........5........"
+                        // .. = "01234567890123456789012345678901234567890123456789012345678"
+                        // .. = "                test                                       "
+                        label = "Add a (failing) test.".ShouldMatchAt(16))
+                ]
+
+            | InputForEmojiSearch.Tick ->
+                SearchableList.autoIndex [
+                    fixture.SearchSegment(
+                        Emoji.CheckMark,
+                        codes = [
+                            //.........1.........2.........3..
+                            //12345678901234567890123456789012
+                            "green_tick".ShouldMatchAt(6)
+                            "check_mark".ShouldNotMatch
+                            "white_check_mark".ShouldNotMatch
+                        ]
+                    )
+                    fixture.SearchSegment(
+                        Emoji.Lipstick,
+                        codes = [
+                            //.........1.........2.........3..
+                            //12345678901234567890123456789012
+                            "lipstick".ShouldMatchAt(4)
+                        ])
                 ]
 
         let items = AllEmojiItems |> Map.valuesAsList

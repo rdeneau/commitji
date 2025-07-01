@@ -25,17 +25,22 @@ let keyStroke keyStroke =
 let highlightSegmentWith applyHighlight (segment: SearchSegment) =
     let text = segment.Text.Value
 
-    match segment.State with
-    | SegmentState.NotSearchable
-    | SegmentState.Searchable _
-    | SegmentState.Selected -> text
-    | SegmentState.Searched(hits = []) -> text
-    | SegmentState.Searched(length = 0) -> text
-    | SegmentState.Searched(hits, n) ->
-        let maxHit = text.Length - n
+    match segment with
+    | SearchSegment.NotSearchable _
+    | SearchSegment.Searchable _
+    | SearchSegment.Selected _ -> text
+    | SearchSegment.Searched(text = SearchedSegmentText.HasNoHits) -> text
+    | SearchSegment.Searched(length = 0) -> text
+    | SearchSegment.Searched(_, text, n) ->
+        let chunk =
+            match text with
+            | SearchedSegmentText chunk -> chunk
+            | SearchedSegmentTexts chunks -> chunks |> List.head // Take the first chunk, as chunks are sorted by number of hits descending
+
+        let maxHit = chunk.Text.Length - n
 
         let hits =
-            hits
+            chunk.Hits
             |> List.filter (fun hit -> hit >= 0 && hit <= maxHit) // Filter out invalid hits
             |> List.sortDescending // Sort hits by descending order to process from right to left and avoid overlapping issues
 
@@ -49,7 +54,7 @@ let highlightSegmentWith applyHighlight (segment: SearchSegment) =
 
                 $"%s{loop rest before}%s{applyHighlight found}%s{after}"
 
-        loop hits text
+        loop hits chunk.Text
 
 let highlightSegment segment =
     highlightSegmentWith (applyMarkup "grey19 on yellow") segment
