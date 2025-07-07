@@ -18,6 +18,14 @@ Commitji is available as a .NET global tool. You can install it using the follow
 dotnet tool install --global Commitji.Cli
 ```
 
+Then, you can run it with the command `commitji` in a terminal.
+
+💡 In [GitExtensions](https://gitextensions.github.io), you can:
+
+1. define a script to run `commitji` in _Settings > Scripts_ and save the settings,
+2. attach a keyboard shortcut to run the previous script, in _Settings > Hotkeys_, \
+   for instance `[Ctrl]+[.]` in reference to `[Win]+[.]` to open the emoji picker in Windows 11.
+
 ## Issues at stake
 
 ### Tools
