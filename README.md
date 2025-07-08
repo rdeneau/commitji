@@ -18,9 +18,11 @@
 
 You may have a preferred tool to create commits.
 
-For instance, on Windows, I use [GitExtensions](https://gitextensions.github.io) 🤩, practical
+For instance, on Windows, I use [GitExtensions](https://gitextensions.github.io) 🤩: practical
 _(as long as you don't mind using the mouse)_ and powerful user-interface for `git`.
-In the commit view, I use on daily basis the following features:
+
+<details>
+<summary>✨ <i>Example of GitExtensions features I used daily regarding commits</i></summary>
 
 - stage/unstage many/all files at once,
 - stage/unstage only some lines in a file, by selecting the lines and using the keyboard shortcut `[S]` or `[U]`,
@@ -30,6 +32,8 @@ In the commit view, I use on daily basis the following features:
 - create a branch before committing,
 - visualize the differences without whitespaces changes,
 - display the differences in WinMerge (`[F3]`).
+
+</details>
 
 👉 Commitji is not a replacement for such a tool, it is complementary to it, to help you write commit messages:
 
