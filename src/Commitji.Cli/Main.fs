@@ -6,6 +6,8 @@ open Commitji.Core
 
 [<EntryPoint>]
 let main _ =
+    Console.BackgroundColor <- ConsoleColor.Black
+    Console.ForegroundColor <- ConsoleColor.White
     Console.OutputEncoding <- System.Text.Encoding.UTF8 // 👈 To ensure proper display of emojis while running the executable
 
     // TODO: verifier si l'on ne pourrait pas utiliser le Elmish de Fable plutôt que de le réécrire
