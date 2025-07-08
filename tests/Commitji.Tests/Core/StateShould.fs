@@ -955,20 +955,20 @@ module ``6_ determine semantic version change`` =
         actual |> shouldHave [ CompletedStepItem(CompletedStepItem.SemVerChange(Some SemVerChange.Major)) ]
 
     [<Fact>]
-    let ``indicate minor given a fix with no breaking change`` () =
+    let ``indicate minor given a feat with no breaking change`` () =
         let actual =
             initial // ↩
-            |> update (Msg.InputChanged "fi")
+            |> update (Msg.InputChanged "fe")
             |> update Msg.AcceptSelection // Select first emoji
             |> update Msg.AcceptSelection // Confirm no breaking change
 
         actual |> shouldHave [ CompletedStepItem(CompletedStepItem.SemVerChange(Some SemVerChange.Minor)) ]
 
     [<Fact>]
-    let ``indicate patch given a feat with no breaking change`` () =
+    let ``indicate patch given a fix with no breaking change`` () =
         let actual =
             initial // ↩
-            |> update (Msg.InputChanged "fe")
+            |> update (Msg.InputChanged "fi")
             |> update Msg.AcceptSelection // Select first emoji
             |> update Msg.AcceptSelection // Confirm no breaking change
 
