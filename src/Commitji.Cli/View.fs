@@ -107,7 +107,7 @@ module private HintPanel =
                 | Possibility.ToggleSearchMode(SearchMode.Custom _), _ -> ()
 
                 | Possibility.Terminate, _ -> Hint.keyStroke [ "Ctrl"; "C" ] $"""Quit %s{Markup.error "✖"}"""
-                | Possibility.Undo, _ -> Hint($"""%s{Markup.keyStroke [ "Alt"; "Z" ]} %s{Markup.em "or"} %s{Markup.kbd "Backspace"}""", "Undo the last action ⏪") // TODO 💡 indicate the last action (historizing the MSg)
+                | Possibility.Undo, _ -> Hint($"""%s{Markup.keyStroke [ "Alt"; "Z" ]} %s{Markup.em "or"} %s{Markup.kbd "Backspace"}""", "Undo the last action ⏪")
         ]
 
 [<RequireQualifiedAccess>]

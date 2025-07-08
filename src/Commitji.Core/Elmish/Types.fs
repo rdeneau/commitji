@@ -29,7 +29,7 @@ type CurrentStep = { Step: Step; Input: string }
 [<RequireQualifiedAccess>]
 type CompletedStep =
     | Prefix of selectedPrefix: SearchItem<Prefix>
-    | Emoji of selectedEmoji: SearchItem<Emoji> // TODO 💡 skip the emoji - it can be Emoji.None "-", matching "none" and linked to any Prefix...
+    | Emoji of selectedEmoji: SearchItem<Emoji>
     | BreakingChange of selectedBreakingChange: SearchItem<BreakingChange>
     | SemVerChange of SemVerChange option
 
