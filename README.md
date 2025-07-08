@@ -10,22 +10,6 @@
 > messages supported by [semantic release](https://semantic-release.gitbook.io/semantic-release) and including an emoji
 > compatible with the commit type.
 
-## Installation
-
-Commitji is available as a .NET global tool. You can install it using the following command:
-
-```powershell
-dotnet tool install --global Commitji.Cli
-```
-
-Then, you can run it with the command `commitji` in a terminal.
-
-💡 In [GitExtensions](https://gitextensions.github.io), you can:
-
-1. define a script to run `commitji` in _Settings > Scripts_ and save the settings,
-2. attach a keyboard shortcut to run the previous script, in _Settings > Hotkeys_, \
-   for instance `[Ctrl]+[.]` in reference to `[Win]+[.]` to open the emoji picker in Windows 11.
-
 ## Issues at stake
 
 ### Tools
@@ -145,6 +129,47 @@ related to an improvement in your product that is worth the migration cost for y
 
 🔗 [Practical vs. Strict Semantic Versioning](https://aaronstannard.com/oss-semver/)
 
+## Installation
+
+Commitji is available as a .NET global tool. You can install it using the following command:
+
+```powershell
+dotnet tool install --global Commitji.Cli
+```
+
+## Run
+
+### Run in a terminal
+
+You can run Commitji with the command `commitji` in a terminal. But notice that it will clear the console!
+
+### Run in a dedicated windows
+
+There are several ways to run Commitji in a dedicated windows.
+
+For instance on Windows you can use the command `cmd.exe /c "title Commitji && commitji"`.
+
+- `/c` is to close the windows at the end. Use `/k` if you want to keep it open.
+- `title Commitji` is just to ensure that the windows will have a nice title.
+
+### Run in GitExtensions
+
+[GitExtensions](https://gitextensions.github.io) allows to define a custom script and to attach a hotkey to run it.
+
+1. In _Settings > Scripts_, add a script with the following properties. Then, press `[OK]` (and not `[Apply]`) to save the settings.
+   - Name: Commitji
+   - Command: `$host.UI.RawUI.WindowTitle = 'Commitji'; commitji`
+   - Is PowerShell script: True
+2. In _Settings > Hotkeys_, attach a keyboard shortcut to run the previous script \
+   💡 for instance `[Ctrl]+[.]` _(`[OemPeriod]`),_ in reference to `[Win]+[.]` to open the emoji picker in Windows 11.
+
+Then, when you want to commit your changes, you can press:
+
+- `[Ctrl]+[Space]` to open the _Commit_ popup
+- `[Ctrl]+[.]` to open _Commitji_
+- complete all steps until the commit message template copied in the clipboard
+- paste it in the _Commit message_ text area
+
 ## Usage
 
 ### Steps
@@ -161,7 +186,7 @@ When you have both the prefix and the emoji, you can indicate if it's a breaking
 Afterward, the corresponding semantic version change is indicated (Major, Minor, Patch, None),
 and the commit message template is displayed. You can copy it to the clipboard by pressing `[Enter]`.
 
-### Behaviours
+### Behaviors
 
 The selection is made in various ways:
 
@@ -179,6 +204,8 @@ The search is case-insensitive, and has 2 modes:
 - Full-text search: the input is matched against the whole choice text.
 - You can switch to full-text search by pressing `[Alt]+[F]` (or `[Ctrl]+[F]` when it's not intercepted by the host).
 - You can exit the full-text search by pressing `[Alt]+[F]` again (or `[Escape]` when it's not intercepted by the host).
+
+💡 In the quick search mode, if your input matches nothing, the mode is automatically expanded to full-text and a new search is performed. You will the new matches, if any. If not, the mode will automatically return to quick search mode.
 
 At any time, you can press:
 
