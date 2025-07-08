@@ -267,7 +267,6 @@ let private handleKeyPress (keyInfo: ConsoleKeyInfo) (model: Model) dispatch =
     | _, (ConsoleModifiers.None | ConsoleModifiers.Shift), c -> dispatch (InputChanged $"%s{model.CurrentStep.Input}%c{c}")
     | _ -> ()
 
-// TODO 💡 Live display: https://spectreconsole.net/live/live-display
 let render model dispatch =
     AnsiConsole.Clear()
 
