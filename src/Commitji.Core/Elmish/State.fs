@@ -53,7 +53,7 @@ module Extensions =
         member private this.InitSegments(segmentsProps) = [
             for segmentId, segmentText in segmentsProps do
                 match this.States.TryFind(segmentId) with
-                | Some (SegmentConfig.Searchable operation) -> SearchSegment.Searchable(segmentId, segmentText, operation)
+                | Some(SegmentConfig.Searchable operation) -> SearchSegment.Searchable(segmentId, segmentText, operation)
                 | Some SegmentConfig.NotSearchable -> SearchSegment.NotSearchable(segmentId, segmentText)
                 | None -> ()
         ]
@@ -265,12 +265,21 @@ let private determineCommitMessageTemplate (model: Model) =
     $"%s{prefix.Code}: %s{emoji.Char} #description%s{breakingChangeMessage}"
 
 let private performSearch (model: Model) =
-    let updateModelStep getStep getSelectableList =
-        let selectableList: SelectableList<_> =
-            getSelectableList model.SegmentsConfiguration
+    let runSearchWithAutoExpand buildStep runSearch =
+        let selectableList: SelectableList<_> = runSearch model.SegmentsConfiguration
+        let step: Step = buildStep selectableList
 
-        let step: Step = // ↩
-            getStep selectableList
+        // Try to expand the search to full-text temporarily if the quick search is not successful.
+        match selectableList.Items, step, model.SearchMode with
+        | [], (Step.Prefix _ | Step.Emoji _), SearchMode.Quick ->
+            match runSearch (SegmentsConfiguration.ofSearchMode SearchMode.FullText) with
+            | { Items = [] } -> model.SearchMode, selectableList, step
+            | searchableList' -> SearchMode.FullText, searchableList', buildStep searchableList'
+        | _ -> model.SearchMode, selectableList, step
+
+    let updateModelStep buildStep runSearch =
+        let searchMode, selectableList, step = // ↩
+            runSearchWithAutoExpand buildStep runSearch
 
         let errors =
             match selectableList.Items with
@@ -278,9 +287,10 @@ let private performSearch (model: Model) =
             | _ -> []
 
         {
-            model with // ↩
+            model with
                 Model.CurrentStep.Step = step
                 Model.Errors = model.Errors @ errors
+                Model.SearchMode = searchMode
         }
 
     match model.CurrentStep.Step, SearchInput.tryCreate model.CurrentStep.Input with

@@ -102,7 +102,7 @@ module private HintPanel =
 
                 | Possibility.ToggleFirstStepToEmoji, _ -> Hint.key ":" "Start by selecting an emoji"
 
-                | Possibility.ToggleSearchMode SearchMode.Quick, _ -> Hint.key "Escape" "Exit the full-text search"
+                | Possibility.ToggleSearchMode SearchMode.Quick, _ -> Hint.keyStroke [ "Alt"; "F" ] "Exit the full-text search 🔎"
                 | Possibility.ToggleSearchMode SearchMode.FullText, _ -> Hint.keyStroke [ "Alt"; "F" ] "Activate the full-text search 🔎"
                 | Possibility.ToggleSearchMode(SearchMode.Custom _), _ -> ()
 
