@@ -5,6 +5,7 @@ open Commitji.Core.Model.Search
 let inline applyMarkup markup text = // ↩
     $"[%s{markup}]%s{text}[/]"
 
+let blink = applyMarkup "slowblink"
 let current = applyMarkup "cyan"
 let inactive = applyMarkup "grey"
 let light = applyMarkup "silver"

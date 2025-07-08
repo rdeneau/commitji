@@ -2,6 +2,7 @@
 
 open Commitji.Cli
 open Spectre.Console
+open Spectre.Console.Rendering
 
 type Hint = Hint of title: string * text: string
 
@@ -16,8 +17,7 @@ type Panel =
             Border = BoxBorder.Rounded,
             Expand = true,
             Header = PanelHeader($"""%s{icon}%s{Markup.strong (Markup.em header)}""")
-        )
-        |> AnsiConsole.Write
+        ) :> IRenderable
 
     static member panel(icon, header, text) =
         Panel.panel (icon, header, content = Markup(text))

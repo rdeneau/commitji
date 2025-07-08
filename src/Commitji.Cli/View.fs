@@ -9,7 +9,19 @@ open Commitji.Core
 open Commitji.Core.Model
 open Commitji.Core.Model.Search
 open Spectre.Console
+open Spectre.Console.Rendering
 open TextCopy
+
+[<RequireQualifiedAccess>]
+module private Render =
+    /// 💡 This can be used to render an empty row inside a `Rows` component.
+    let empty = Text.Empty :> IRenderable
+
+    let text text = Text(text) :> IRenderable
+    let markup text = Markup(text) :> IRenderable
+
+    let rows children =
+        Rows(Array.ofSeq children) :> IRenderable
 
 [<RequireQualifiedAccess>]
 module private CommitMessageTemplate =
@@ -19,45 +31,46 @@ module private CommitMessageTemplate =
 
     let render text =
         let grid = Grid().AddColumns(count = 2)
-
-        grid.AddRow(Markup.current " »", formatHashtags text) // ↩
-        |> AnsiConsole.Write
+        grid.AddRow(Markup.current " »", formatHashtags text) :> IRenderable
 
 [<RequireQualifiedAccess>]
 module private ErrorPanel =
-    let render (model: Model) =
-        match model.Errors with
-        | [] -> ()
-        | errors ->
-            AnsiConsole.WriteLine()
+    let render errors =
+            Rows [
+                Render.empty
+                Panel.errors [
+                    for error in errors do
+                        match error with
+                        | Error.NoItems stepName ->
+                            let noItemFound itemName = $"No {itemName} found."
 
-            Panel.errors [
-                for error in errors do
-                    match error with
-                    | Error.NoItems stepName ->
-                        let noItemFound itemName = $"No {itemName} found."
+                            match stepName with
+                            | StepName.Prefix -> noItemFound "prefixes"
+                            | StepName.Emoji -> noItemFound "emojis"
+                            | StepName.BreakingChange -> noItemFound "breaking changes"
+                            | StepName.SemVerChange
+                            | StepName.Confirmation -> ()
 
-                        match stepName with
-                        | StepName.Prefix -> noItemFound "prefixes"
-                        | StepName.Emoji -> noItemFound "emojis"
-                        | StepName.BreakingChange -> noItemFound "breaking changes"
-                        | StepName.SemVerChange
-                        | StepName.Confirmation -> ()
-
-                    | Error.InputNotSupported input -> $"Input not supported: %s{input}."
+                        | Error.InputNotSupported input -> $"Input not supported: %s{input}."
+                ]
             ]
 
 [<RequireQualifiedAccess>]
 module private HintPanel =
     type Example = Example of input: string * result: string
 
-    let private (==>) input result = Example(input, result)
+    /// <summary>
+    /// Quick way to create an <c>Example</c> with the syntax <c>input ==> result</c>.
+    /// </summary>
+    let private (==>) input result = // ↩
+        Example(input, result)
 
     type private Hint with
         static member key key text = // ↩
             Hint(Markup.kbd key, text)
 
-        static member keyStroke keyStroke text = Hint(Markup.keyStroke keyStroke, text)
+        static member keyStroke keyStroke text = // ↩
+            Hint(Markup.keyStroke keyStroke, text)
 
         static member upDownKeys item =
             Hint($"""%s{Markup.kbd "↓"}/%s{Markup.kbd "↑"} + %s{Markup.kbd "Enter"}""", $"Select the next/previous %s{item}")
@@ -113,7 +126,7 @@ module private HintPanel =
 [<RequireQualifiedAccess>]
 module private Instruction =
     let private render text =
-        AnsiConsole.MarkupLine(Markup.strong (Markup.current "? ") + text)
+        Markup(Markup.strong (Markup.current "? ") + text + Environment.NewLine) :> IRenderable
 
     let prefix () =
         render "Select a prefix for the commit message:"
@@ -196,58 +209,69 @@ module Stepper =
             | StepName.Confirmation -> "Confirmation"
 
     let render model =
-        Stepper.render [
-            for name, status in determineSteps model do
-                Stepper.step (name.Text, status)
+        Render.rows [
+            Stepper.render [
+                for name, status in determineSteps model do
+                    Stepper.step (name.Text, status)
+            ]
         ]
 
-        AnsiConsole.WriteLine()
+[<RequireQualifiedAccess>]
+module private CompletedSteps =
+    let private renderCompletedStep instruction segments =
+        Render.rows [ // ↩
+            instruction ()
+            SelectionPrompt.render (currentChoiceIndex = -1) [ segments |> List.filter (fun x -> x.Id <> SegmentId.Number) ]
+            Render.empty
+        ]
 
-module private Render =
-    let private completedStep instruction segments =
-        instruction ()
-        SelectionPrompt.render (currentChoiceIndex = -1) [ segments |> List.filter (fun x -> x.Id <> SegmentId.Number) ]
-        AnsiConsole.WriteLine()
+    let render (model: Model) =
+        Render.rows [
+            for step in List.rev model.CompletedSteps do
+                match step with
+                | CompletedStep.Prefix prefix -> renderCompletedStep Instruction.prefix prefix.Segments
+                | CompletedStep.Emoji emoji -> renderCompletedStep Instruction.emoji emoji.Segments
+                | CompletedStep.BreakingChange breakingChange -> renderCompletedStep Instruction.breakingChange breakingChange.Segments
+                | CompletedStep.SemVerChange semVerChange -> renderCompletedStep Instruction.semVerChange (SemVerChange.segments semVerChange)
+        ]
 
-    let completedSteps (model: Model) =
-        for step in List.rev model.CompletedSteps do
-            match step with
-            | CompletedStep.Prefix prefix -> completedStep Instruction.prefix prefix.Segments
-            | CompletedStep.Emoji emoji -> completedStep Instruction.emoji emoji.Segments
-            | CompletedStep.BreakingChange breakingChange -> completedStep Instruction.breakingChange breakingChange.Segments
-            | CompletedStep.SemVerChange semVerChange -> completedStep Instruction.semVerChange (SemVerChange.segments semVerChange)
+[<RequireQualifiedAccess>]
+module private CurrentStep =
+    let private renderSelectableCurrentStep model instruction (list: SelectableList<'t>) =
+        Render.rows [
+            instruction () :> IRenderable
 
-    let private selectableCurrentStep model instruction (list: SelectableList<'t>) =
-        instruction ()
-        ErrorPanel.render model
-        SelectionPrompt.render (currentChoiceIndex = list.Index) [ for prefix in list.Items -> prefix.Segments ]
-        AnsiConsole.WriteLine()
-        HintPanel.render model
+            match model.Errors with
+            | [] -> ()
+            | errors -> ErrorPanel.render errors
 
-    let currentStep (model: Model) =
-        match model.CurrentStep.Step with
-        | Step.Prefix prefixes -> selectableCurrentStep model Instruction.prefix prefixes
-        | Step.Emoji emojis -> selectableCurrentStep model Instruction.emoji emojis
-        | Step.BreakingChange breakingChanges -> selectableCurrentStep model Instruction.breakingChange breakingChanges
+            SelectionPrompt.render (currentChoiceIndex = list.Index) [ for prefix in list.Items -> prefix.Segments ]
+            Render.empty
+            HintPanel.render model
+        ]
 
-        | Step.Confirmation commitMessageTemplate ->
+    let private renderConfirmationStep model commitMessageTemplate =
+        Render.rows [ // ↩
             Instruction.confirmation ()
             CommitMessageTemplate.render commitMessageTemplate
-            AnsiConsole.WriteLine()
+            Render.empty
             HintPanel.render model
+        ]
 
-        AnsiConsole.WriteLine()
+    let render (model: Model) =
+        match model.CurrentStep.Step with
+        | Step.Prefix prefixes -> renderSelectableCurrentStep model Instruction.prefix prefixes
+        | Step.Emoji emojis -> renderSelectableCurrentStep model Instruction.emoji emojis
+        | Step.BreakingChange breakingChanges -> renderSelectableCurrentStep model Instruction.breakingChange breakingChanges
+        | Step.Confirmation commitMessageTemplate -> renderConfirmationStep model commitMessageTemplate
 
-let private copyMessageToClipboard (model: Model) =
-    match model.CurrentStep.Step with
-    | Step.Confirmation commitMessageTemplate ->
-        ClipboardService.SetText commitMessageTemplate
-        AnsiConsole.WriteLine "✅"
-        AnsiConsole.MarkupLine(Markup.selected "Copied to the clipboard.")
-        AnsiConsole.WriteLine()
-    | _ -> AnsiConsole.MarkupLine(Markup.error "Cannot copy the commit message template: not in the confirmation step.")
+let private copyMessageToClipboard commitMessageTemplate =
+    ClipboardService.SetText commitMessageTemplate
+    AnsiConsole.WriteLine "✅"
+    AnsiConsole.MarkupLine(Markup.selected "Copied to the clipboard.")
+    AnsiConsole.WriteLine()
 
-let private handleKeyPress (keyInfo: ConsoleKeyInfo) (model: Model) dispatch =
+let private handleKeyPress (keyInfo: ConsoleKeyInfo) (model: Model) (dispatch: Msg -> unit) =
     match keyInfo.Key, keyInfo.Modifiers, keyInfo.KeyChar with
     | ConsoleKey.Backspace, _, _
     | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'z' -> dispatch Undo // 💡 We can use [Alt]+[Z] when [Ctrl]+[Z] is caught by the terminal
@@ -258,7 +282,7 @@ let private handleKeyPress (keyInfo: ConsoleKeyInfo) (model: Model) dispatch =
         | Step.Prefix _
         | Step.Emoji _
         | Step.BreakingChange _ -> dispatch AcceptSelection
-        | Step.Confirmation _ -> copyMessageToClipboard model
+        | Step.Confirmation commitMessageTemplate -> copyMessageToClipboard commitMessageTemplate
     | ConsoleKey.Escape, _, _ -> dispatch ToggleSearchMode
     | _, (ConsoleModifiers.Control | ConsoleModifiers.Alt), 'f' -> dispatch ToggleSearchMode // 💡 We can use [Alt]+[F] when [Ctrl]+[F] is caught by the terminal
     | _, ConsoleModifiers.Control, 'c' -> dispatch Terminate
@@ -267,25 +291,20 @@ let private handleKeyPress (keyInfo: ConsoleKeyInfo) (model: Model) dispatch =
     | _, (ConsoleModifiers.None | ConsoleModifiers.Shift), c -> dispatch (InputChanged $"%s{model.CurrentStep.Input}%c{c}")
     | _ -> ()
 
-// TODO 💡 Live display: https://spectreconsole.net/live/live-display
-let render model dispatch =
-    AnsiConsole.Clear()
+let readKey model dispatch =
+    AnsiConsole.Console.Input.ReadKey(intercept = true)
+    |> Option.ofNullable
+    |> Option.iter (fun keyInfo -> handleKeyPress keyInfo model dispatch)
 
-    let title = Rule("[bold orange1]Commit[/][yellow italic]ji[/]").Centered()
-    AnsiConsole.Write(title)
-    AnsiConsole.WriteLine()
+let render model =
+    Render.rows [
+        Rule("[bold orange1]Commit[/][yellow italic]ji[/]").Centered()
+        Render.empty
 
-    Stepper.render model
-    Render.completedSteps model
-    Render.currentStep model
+        Stepper.render model
+        CompletedSteps.render model
+        CurrentStep.render model
+        Render.empty
 
-    AnsiConsole.Markup(Markup.current "» ")
-    AnsiConsole.Markup "Input: "
-
-    AnsiConsole.Write model.CurrentStep.Input
-
-    let keyInfo = AnsiConsole.Console.Input.ReadKey(intercept = true)
-
-    match Option.ofNullable keyInfo with
-    | Some keyInfo -> handleKeyPress keyInfo model dispatch
-    | None -> ()
+        Markup((Markup.current "» ") + "Input: " + model.CurrentStep.Input + Markup.blink "_")
+    ]

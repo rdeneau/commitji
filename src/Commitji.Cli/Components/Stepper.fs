@@ -1,8 +1,10 @@
 ﻿module Commitji.Cli.Components.Stepper
 
+open System
 open Commitji.Cli
 open Commitji.Core.Model
 open Spectre.Console
+open Spectre.Console.Rendering
 
 type StepProps = { Name: string; Status: StepStatus }
 
@@ -23,15 +25,17 @@ type Stepper =
         { Name = name; Status = status }
 
     static member render(steps) =
-        [
-            "Steps:  " |> Markup.strong |> Markup.em
+        let text =
+            [
+                "Steps:  " |> Markup.strong |> Markup.em
 
-            for index, step in Seq.indexed steps do
-                match index with
-                | 0 -> ()
-                | _ -> Markup.light Separator
+                for index, step in Seq.indexed steps do
+                    match index with
+                    | 0 -> ()
+                    | _ -> Markup.light Separator
 
-                Markup.step index step
-        ]
-        |> String.concat ""
-        |> AnsiConsole.MarkupLine
+                    Markup.step index step
+            ]
+            |> String.concat ""
+
+        Markup(text + Environment.NewLine) :> IRenderable

@@ -4,6 +4,7 @@ open Commitji.Cli
 open Commitji.Core.Model
 open Commitji.Core.Model.Search
 open Spectre.Console
+open Spectre.Console.Rendering
 
 type Choice = SearchSegment list
 
@@ -106,7 +107,7 @@ type SelectionPrompt(?halfPageSize) =
             let model = defaultInstance.compute currentChoiceIndex choices
 
             match model.rows with
-            | [] -> ()
+            | [] -> Text.Empty :> IRenderable
             | _ ->
                 let grid =
                     (Grid(), model.segmentIds)
@@ -121,5 +122,4 @@ type SelectionPrompt(?halfPageSize) =
                     )
 
                 let grid = (grid, model.rows) ||> List.fold _.AddRow
-
-                AnsiConsole.Write(grid)
+                grid :> IRenderable
