@@ -178,7 +178,7 @@ The search is case-insensitive, and has 2 modes:
 - Quick search: the input is matched against the beginning of the choice code.
 - Full-text search: the input is matched against the whole choice text.
 - You can switch to full-text search by pressing `[Alt]+[F]` (or `[Ctrl]+[F]` when it's not intercepted by the host).
-- You can exit the full-text search by pressing `[Escape]`.
+- You can exit the full-text search by pressing `[Alt]+[F]` again (or `[Escape]` when it's not intercepted by the host).
 
 At any time, you can press:
 
