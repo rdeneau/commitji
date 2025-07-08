@@ -10,6 +10,8 @@
 > messages supported by [semantic release](https://semantic-release.gitbook.io/semantic-release) and including an emoji
 > compatible with the commit type.
 
+![Demo](Demo.gif)
+
 ## Issues at stake
 
 ### Tools
