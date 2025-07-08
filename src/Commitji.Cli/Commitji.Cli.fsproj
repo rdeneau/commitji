@@ -47,12 +47,11 @@
     <Compile Include="Components\SelectionPrompt.fs"/>
     <Compile Include="Components\Stepper.fs"/>
     <Compile Include="View.fs"/>
-    <Compile Include="Elmish\RingerBuffer.fs"/>
-    <Compile Include="Elmish\Program.fs"/>
     <Compile Include="Main.fs"/>
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Fable.Elmish" Version="4.3.0" />
     <PackageReference Include="Microsoft.Sbom.Targets" Version="4.0.3">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
