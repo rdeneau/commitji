@@ -64,10 +64,10 @@ while using emojis to clarify the type of change, to end up with this template:
 
 The `<prefix>`, called `type` in conventional commits, indicates the type of change.
 
-There are 9 prefixes available, almost all directly supported by semantic release:
+There are 10 prefixes available, almost all directly supported by semantic release:
 
 - The more important: `feat`, `fix`, `refactor`, `test`.
-- The other prefixes: `chore`, `docs`, `perf`, `revert`, `wip`.
+- The other prefixes: `chore`, `docs`, `perf`, `revert`, `tidy`, `wip`.
 
 Note that there are no `build`, `ci`, `style`.
 

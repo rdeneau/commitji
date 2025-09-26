@@ -518,17 +518,17 @@ module Fixture =
         | Diz
         | Mono
         | Rew
-        | Triangular
+        | TriangularF
 
     let (|MinInputWithMatchingEmojiWithManyPrefixes|) =
         function
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Boom -> "boom", Emoji.Boom, [ Prefix.Feat; Prefix.Fix ]
-        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Bro -> "bro", Emoji.Broom, [ Prefix.Refactor; Prefix.Chore ]
+        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Bro -> "bro", Emoji.Broom, [ Prefix.Refactor; Prefix.Chore; Prefix.Tidy ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Cam -> "cam", Emoji.CameraFlash, [ Prefix.Test; Prefix.Chore; Prefix.Docs ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Diz -> "diz", Emoji.Dizzy, [ Prefix.Feat; Prefix.Fix ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Mono -> "mono", Emoji.MonocleFace, [ Prefix.Chore; Prefix.Wip ]
         | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Rew -> "rew", Emoji.Rewind, [ Prefix.Chore; Prefix.Revert ]
-        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.Triangular -> "triangular", Emoji.TriangularFlagOnPost, [ Prefix.Feat; Prefix.Chore ]
+        | MinInputToMatchExactlyOneEmojiAndManyPrefixes.TriangularF -> "triangular_f", Emoji.TriangularFlagOnPost, [ Prefix.Feat; Prefix.Chore ]
 
     [<RequireQualifiedAccess>]
     type MinInputToMatchExactlyOnePrefixAndManyEmojis =
@@ -539,7 +539,8 @@ module Fixture =
         | P
         | Ref
         // Not Rev because it has a single emoji: Emoji.Rewind
-        | T
+        | Te
+        | Ti
         | W
 
     let (|MinInputWithMatchingPrefixAndEmojis|) input =
@@ -649,13 +650,19 @@ module Fixture =
                 Emoji.Truck
                 Emoji.Wastebasket
             ]
-        | MinInputToMatchExactlyOnePrefixAndManyEmojis.T ->
+        | MinInputToMatchExactlyOnePrefixAndManyEmojis.Te ->
             result Prefix.Test [
                 Emoji.CameraFlash
                 Emoji.CheckMark
                 Emoji.ClownFace
                 Emoji.Seedling
                 Emoji.TestTube
+            ]
+        | MinInputToMatchExactlyOnePrefixAndManyEmojis.Ti ->
+            result Prefix.Tidy [
+                Emoji.ArtistPalette
+                Emoji.Broom
+                Emoji.TriangularRuler
             ]
         | MinInputToMatchExactlyOnePrefixAndManyEmojis.W ->
             result Prefix.Wip [
@@ -683,6 +690,7 @@ module Fixture =
         | Chore
         | Docs
         | Perf
+        | Tidy
         | Wip
 
     let (|MinInputWithMatchingEmojiWithManyPrefixesAndNoBreakingChange|) prefixWithoutBreakingChange =
@@ -692,7 +700,8 @@ module Fixture =
             | PrefixWithoutBreakingChange.Docs -> MinInputToMatchExactlyOnePrefixAndManyEmojis.D
             | PrefixWithoutBreakingChange.Perf -> MinInputToMatchExactlyOnePrefixAndManyEmojis.P
             | PrefixWithoutBreakingChange.Refactor -> MinInputToMatchExactlyOnePrefixAndManyEmojis.Ref
-            | PrefixWithoutBreakingChange.Test -> MinInputToMatchExactlyOnePrefixAndManyEmojis.T
+            | PrefixWithoutBreakingChange.Test -> MinInputToMatchExactlyOnePrefixAndManyEmojis.Te
+            | PrefixWithoutBreakingChange.Tidy -> MinInputToMatchExactlyOnePrefixAndManyEmojis.Ti
             | PrefixWithoutBreakingChange.Wip -> MinInputToMatchExactlyOnePrefixAndManyEmojis.W
 
         input, expectedPrefix, expectedEmojis

@@ -24,6 +24,7 @@ type Prefix =
     | Docs
     | Perf
     | Revert
+    | Tidy
     | Wip
 
     member this.Props =
@@ -37,6 +38,7 @@ type Prefix =
             | Docs -> "docs", "Documentation only changes"
             | Perf -> "perf", "A code change that improves performance"
             | Revert -> "revert", "Reverts a previous commit"
+            | Tidy -> "tidy", "A code cleaning: formatting, removing dead code..."
             | Wip -> "wip", "Work in progress, not yet finalized"
 
         {| Code = code; Hint = hint |}
