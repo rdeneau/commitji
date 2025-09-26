@@ -362,7 +362,16 @@ module ``2a_ run - normal search on prefixes - helpers`` =
         let result =
             match input, searchOperation with
             // D: single-hit
-            | InputForPrefixSearch.D, _ -> SearchableList.autoIndex [ fixture.SearchSegment(Prefix.Docs, code = "docs".ShouldMatchAtTheStart) ]
+            | InputForPrefixSearch.D, SearchOperation.StartsWith ->
+                SearchableList.autoIndex [ // ↩
+                    fixture.SearchSegment(Prefix.Docs, code = "docs".ShouldMatchAtTheStart)
+                ]
+
+            | InputForPrefixSearch.D, SearchOperation.Contains ->
+                SearchableList.autoIndex [ // ↩
+                    fixture.SearchSegment(Prefix.Docs, code = "docs".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Prefix.Tidy, code = "tidy".ShouldMatchAt(2))
+                ]
 
             // F: several single-hits
             | InputForPrefixSearch.F, SearchOperation.StartsWith ->
@@ -389,10 +398,11 @@ module ``2a_ run - normal search on prefixes - helpers`` =
                     )
                 ]
 
-            // T: double-hit (for `Test` + `Contains`)
+            // T: double-hit in `Test` (0, 4)
             | InputForPrefixSearch.T, SearchOperation.StartsWith ->
                 SearchableList.autoIndex [ // ↩
                     fixture.SearchSegment(Prefix.Test, code = "test".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Prefix.Tidy, code = "tidy".ShouldMatchAtTheStart)
                 ]
 
             | InputForPrefixSearch.T, SearchOperation.Contains ->
@@ -420,6 +430,12 @@ module ``2a_ run - normal search on prefixes - helpers`` =
                         // . = "0123456789"
                         // . = "     t    "
                         code = "revert".ShouldMatchAt(5)
+                    )
+                    fixture.SearchSegment(
+                        Prefix.Tidy,
+                        // . = "0123456789"
+                        // . = "t         "
+                        code = "tidy".ShouldMatchAtTheStart
                     )
                 ]
 
@@ -464,6 +480,29 @@ module ``2a_ run - normal search on prefixes - helpers`` =
 
         items, searchInput, searchType, result
 
+    let (|PrefixSearchByNum|) prefix =
+        // We have 10 prefixes
+        // -> n = 1     will match two prefixes: the 1st (feat) and the 10th (wip)
+        // -> n = 2..10 will match only one prefix: the nth
+
+        let item = AllPrefixItems[prefix]
+        let items = AllPrefixItems |> Map.valuesAsList
+        let fixture = Fixture(item.Num.Length)
+
+        let result =
+            match item.Num with
+            | "1" ->
+                SearchableList.autoIndex [ // ↩
+                    fixture.SearchSegment(Prefix.Feat, num = "1".ShouldMatchAtTheStart)
+                    fixture.SearchSegment(Prefix.Wip, num = "10".ShouldMatchAtTheStart)
+                ]
+            | _ ->
+                SearchableList.autoIndex [ // ↩
+                    fixture.SearchSegment(prefix, num = item.Num.ShouldMatchAtTheStart)
+                ]
+
+        item, items, result
+
 module ``2a_ run - normal search on prefixes`` =
     [<Property>]
     let ``code only`` (PrefixSearchByCode(items, searchInput, searchType, result)) = // ↩
@@ -473,15 +512,11 @@ module ``2a_ run - normal search on prefixes`` =
         actual =! result
 
     [<Property>]
-    let ``number exact match`` prefix = // ↩
-        let item = AllPrefixItems[prefix]
-        let items = AllPrefixItems |> Map.valuesAsList
-        let fixture = Fixture(item.Num.Length)
-
+    let ``number match`` (PrefixSearchByNum(item, items, result)) = // ↩
         let actual =
             Search(initSegmentsByIndex Segments.All Search.ByNum).Run(SearchInput.create item.Num, items, StringComparison.OrdinalIgnoreCase)
 
-        actual =! SearchableList.autoIndex [ fixture.SearchSegment(prefix, num = item.Num.ShouldMatchAtTheStart) ]
+        actual =! result
 
 [<AutoOpen>]
 module ``2b_ run - full-text search on emojis - helpers`` =
@@ -632,14 +667,16 @@ module ``2b_ run - full-text search on emojis - helpers`` =
                         // .. = "0.........1.........2.........3.........4.........5........"
                         // .. = "01234567890123456789012345678901234567890123456789012345678"
                         // .. = "                     test                                  "
-                        label = "Add, update, or pass tests.".ShouldMatchAt(21))
+                        label = "Add, update, or pass tests.".ShouldMatchAt(21)
+                    )
                     fixture.SearchSegment(
                         Emoji.TestTube,
                         code = "test_tube".ShouldMatchAtTheStart,
                         // .. = "0.........1.........2.........3.........4.........5........"
                         // .. = "01234567890123456789012345678901234567890123456789012345678"
                         // .. = "                test                                       "
-                        label = "Add a (failing) test.".ShouldMatchAt(16))
+                        label = "Add a (failing) test.".ShouldMatchAt(16)
+                    )
                 ]
 
             | InputForEmojiSearch.Tick ->
@@ -660,7 +697,8 @@ module ``2b_ run - full-text search on emojis - helpers`` =
                             //.........1.........2.........3..
                             //12345678901234567890123456789012
                             "lipstick".ShouldMatchAt(4)
-                        ])
+                        ]
+                    )
                 ]
 
         let items = AllEmojiItems |> Map.valuesAsList

@@ -36,6 +36,7 @@ let private All = [
     Emoji.Dizzy, Prefix.Fix
     Emoji.Recycle, Prefix.Refactor
     Emoji.ArtistPalette, Prefix.Refactor
+    Emoji.ArtistPalette, Prefix.Tidy
     Emoji.Fire, Prefix.Refactor
     Emoji.Truck, Prefix.Refactor
     Emoji.BuildingConstruction, Prefix.Refactor
@@ -97,6 +98,8 @@ let private All = [
     Emoji.Bricks, Prefix.Chore
     Emoji.Broom, Prefix.Chore
     Emoji.Broom, Prefix.Refactor
+    Emoji.Broom, Prefix.Tidy
+    Emoji.TriangularRuler, Prefix.Tidy
 ]
 
 let emojisForPrefix selectedPrefix =
