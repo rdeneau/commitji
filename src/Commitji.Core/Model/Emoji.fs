@@ -75,12 +75,13 @@ type Emoji =
     | TestTube //                # 67
     | Thread //                  # 68
     | TriangularFlagOnPost //    # 69
-    | Truck //                   # 70
-    | TwistedRightwardsArrows // # 71
-    | Wastebasket //             # 72
-    | Wheelchair //              # 73
-    | Wrench //                  # 74
-    | Zap //                     # 75
+    | TriangularRuler //         # 70
+    | Truck //                   # 71
+    | TwistedRightwardsArrows // # 72
+    | Wastebasket //             # 73
+    | Wheelchair //              # 74
+    | Wrench //                  # 75
+    | Zap //                     # 76
 
     member this.Props =
         let props char hint codes = {|
@@ -406,6 +407,11 @@ type Emoji =
                 "triangular_flag_on_post"
                 "flag_on_pole"
                 "red_flag"
+            ]
+        | TriangularRuler ->
+            props "📐" "Format code." [ // ↩
+                "triangular_ruler"
+                "triangle_ruler"
             ]
         | Truck ->
             props "🚚" "Move or rename resources (e.g.: files, paths, routes)." [ // ↩
