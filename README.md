@@ -176,6 +176,8 @@ Then, when you want to commit your changes, you can press:
 - complete all steps until the commit message template copied in the clipboard
 - paste it in the _Commit message_ text area
 
+Note that Commitji works better with Powershell 7 so make sure to have it installed and set as the Windows default app for `.ps1` files.
+
 ## Usage
 
 ### Steps
